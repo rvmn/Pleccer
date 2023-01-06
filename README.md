@@ -1,6 +1,7 @@
 # Pleccer
 
-**A slicer focused on supporting multicolor 3D printing based on SuperSlicer
+**A slicer focused on supporting multicolor 3D printing based on SuperSlicer**
+
 
 Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing colorr 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
 
