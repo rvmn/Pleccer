@@ -1,45 +1,38 @@
+# Pleccer
 
-[![you can get this shield at shields.io](https://img.shields.io/discord/771316156203270154?color=7289da&logo=discord&logoColor=white)](https://github.com/supermerill/SuperSlicer/issues/611#issuecomment-907833287) [![you can get this shield at shields.io](https://img.shields.io/reddit/subreddit-subscribers/slic3r)](https://reddit.com/r/slic3r) [![you can get this shield at shields.io](https://img.shields.io/github/discussions/supermerill/superslicer)](https://github.com/supermerill/SuperSlicer/discussions)
+**A slicer focused on supporting multicolor 3D printing based on SuperSlicer
 
-[![Packaging status](https://repology.org/badge/tiny-repos/superslicer.svg)](https://repology.org/project/superslicer/versions) [![you can get this shield at shields.io](https://img.shields.io/chocolatey/v/superslicer)](https://community.chocolatey.org/packages/superslicer) [![you can get this shield at shields.io](https://img.shields.io/homebrew/cask/v/superslicer)](https://formulae.brew.sh/cask/superslicer) [![you can get this shield at shields.io](https://img.shields.io/aur/version/superslicer)](https://aur.archlinux.org/packages/superslicer)
-# SuperSlicer
+Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing colorr 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
 
-**A PrusaSlicer fork (which is a slic3r fork)** (previously Slic3r++)
+Prebuilt Windows, Linux and macOS 64-bit releases are available through the [git releases page](https://github.com/rvmn/Pleccer/releases).  
+Nightly builds are available through the [git actions page](https://github.com/rvmn/Pleccer/actions). Click on the build for your platform and then on the archive name (`nightly_win64` or `SuperSlicer-gtk2.AppImage` or `nightly_macos.dmg`) in the "Artifacts" section in the top right corner.
 
-Prebuilt Windows, Linux and macOS 64-bit releases are available through the [git releases page](https://github.com/supermerill/SuperSlicer/releases). The Linux & macOS builds aren't tested (by me), just compiled, so please report any bugs that may occur during use.  
-For **installers**, check the badges above. Windows users can use chocolatey or scoop.  
-Nightly builds are available through the [git actions page](https://github.com/supermerill/SuperSlicer/actions). Click on the build for your platform and then on the archive name (`nightly_win64` or `SuperSlicer-gtk2.AppImage` or `nightly_macos.dmg`) in the "Artifacts" section in the top right corner.
-
-SuperSlicer takes 3D models (STL, OBJ, AMF) and converts them into G-code
+Pleccer takes 3D models (STL, OBJ, AMF) and converts them into G-code
 instructions for FFF printers or PNG layers for mSLA 3D printers. It's compatible with any modern printer based on the RepRap toolchain which is running a firmware based on Marlin, Prusa, Klipper, etc.
 
+Pleccer is based on [SuperSlicer](https://github.com/supermerill/SuperSlicer) by supermerill.
 SuperSlicer is based on [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) by Prusa Research.
 PrusaSlicer is based on [Slic3r](https://github.com/Slic3r/Slic3r) by Alessandro Ranellucci and the RepRap community.
 
-See the [wiki](https://github.com/supermerill/SuperSlicer/wiki) and
+See the [wiki](https://github.com/rvmn/Pleccer/wiki) and
 the [documentation directory](doc/) for information about compilation.
 
-### What are SuperSlicer main features? main new features/differences?
+### What are Pleccer main features?
 
-* Custom-made generated calibration tests.
-* new settings to fine-tune the top surface quality, like 'only one perimeter on top'.
-* A "denser infill" option for supporting the (solid) top layers.
-* Better **Thin walls** (anchored inside the print, no more random bits at the ends, embedded in perimeter loops).
-* Options to change holes dimensions and/or geometry, to print them at the right size.
-* Better overhangs (add perimeters if needed, slice them in opposite direction each layer).
-* Brim rework: many more options (inside, outside only, 'ears', per object)
-* Some new seam options, to help hide them.
-* Built-in calibration prints
-* Built-in object generation script
-* Can join perimeters into a big one to avoid travel moves.
-* Many other little options and corrections (like the filled concentric pattern).
-* It has also all the current slic3rPE/PrusaSlicer features.
+* Improved color picker (thanks to [colorgrab](https://github.com/nielssp/colorgrab))
+* Mixing color calibration setting (requires a diy/professional color measurer)
+* Mixing color g-code generation based on calibrated data and the color you pick
+* Enhanced smart retraction and gradient change calibration and automatic model updating for purge-free printing (no prime tower/purge)
+* Includes Arc overhang infill ["Multiplex"-version](https://github.com/stmcculloch/arc-overhang/issues/10) for support-free printing
+* Includes Lightning infill from [PrusaSlicer/Cura](https://blog.prusa3d.com/prusaslicer-2-5-is-here-new-perimeter-generator-step-file-support-lightning-infill-and-more_70562/)
+* Includes Arachne perimeter generator for adaptive perimeter widths
+* It has also all the current SuperSlicer features.
 
-### Complete changelog [here](https://github.com/supermerill/SuperSlicer/wiki)
+### Complete changelog [here](https://github.com/rvmn/Pleccer/wiki)
 
 See the wiki for examples.
 
-### What are SuperSlicer / PrusaSlicer / Slic3r's main features?
+### What are Pleccer / SuperSlicer / PrusaSlicer / Slic3r's main features?
 
 Key features are:
 
@@ -97,6 +90,8 @@ Before sending patches and pull requests contact me (preferably through opening 
 changes. This way we can ensure that nobody wastes their time and no conflicts arise in development.
 
 ## License and attribution
+Pleccer is licensed under the _GNU Affero General Public License, version 3_.
+Pleccer is based on SuperSlicer by supermerill.
 
 SuperSlicer is licensed under the _GNU Affero General Public License, version 3_.
 SuperSlicer is based on PrusaSlicer by PrusaResearch.
