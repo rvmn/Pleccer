@@ -27,7 +27,7 @@ the [documentation directory](doc/) for information about compilation.
 * Mixing color calibration setting (requires a diy/professional color measurer)
 * Mixing color g-code generation based on calibrated data and the color you pick
 * Enhanced smart retraction and gradient change calibration and automatic model updating for purge-free printing (no prime tower/purge)
-* Includes Arc overhang infill ["Multiplex"-version](https://github.com/stmcculloch/arc-overhang/issues/10) for support-free printing
+* Includes Arc overhang infill ["Multiplex"-version](https://github.com/stmcculloch/arc-overhang/issues/10) for almost-support-free printing
 * Includes Lightning infill from [PrusaSlicer/Cura](https://blog.prusa3d.com/prusaslicer-2-5-is-here-new-perimeter-generator-step-file-support-lightning-infill-and-more_70562/)
 * Includes Arachne perimeter generator for adaptive perimeter widths
 * It has also all the current SuperSlicer features.
