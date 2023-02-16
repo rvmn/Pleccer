@@ -3,25 +3,27 @@
 # Pleccer
 
 ### **A slicer focused on supporting waste-free multicolor 3D printing based on PrusaSlicer**
-![plec-logo2-19](https://user-images.githubusercontent.com/124889495/219346911-d85ae47a-7f43-414c-a92f-dc6761cb9e36.png) 
 
-Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing color 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
+![plec-logo3](https://user-images.githubusercontent.com/124889495/219365294-9931331c-17a7-4351-a9b0-daef43feaa2b.png)
+
+Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing color 3D printer optimized for avoiding waste. You can find out more about PLEC on the [community site](https://plec.community).
 
 
 ## Support Pleccer development
 
-Pleccer is fully developed by unpaid individuals and tries to do so fully open-source, that means a lot of work to make the code clean and readable and all totally unpaid. Please consider supporting Pleccer and making a donation on the community website: [plec.community](https://plec.community).
+Pleccer is fully developed by unpaid individuals and tries to do so fully open-source, that means a lot of work to make the code clean and readable and all totally unpaid. Please consider supporting Pleccer and making a donation on the community website: [plec.community](https://plec.community/#support).
 
-We will make features possible, that will really make Pleccer work totally waste-free and make durable printing a reality.
-Features that we are making a reality:
+We are making a lot of new features possible, which will make Pleccer work totally waste-free and make durable printing a reality.
+Some features that we are working on:
 
-- Infill by specific extruder; use your wrongly bought or special-fit filament on the infill of your print
-- No purge tower; instead using wipe-into-support and -infill, plus it will give info on extra volume needed for purging and option to load another model for wipe-into-object.
-- Support-free printing; or to be fair: optimized for the least supports. Pleccer will in the future support 'from object-corner' support that prints from an outside facing corner of the object so you use only a small bridge toward the 'island' as support
-- All options required for mixing extruding color printing made easy
+- Infill on a seperate extruder; use your wrongly bought or special-type filament only on the infill of your print
+- No purge tower; instead using wipe-into-support and wipe-into-infill, plus it will give info on extra volume needed for purging and option to load another model for wipe-into-object.
+- Support-free printing; or to be fair: optimized for the least support amount. Pleccer already supports 'arc overhangs' which avoid needing support on most overhangs, we will in the future support 'from-object-corner' support that grows from an outside facing corner of the object a support so you use only a small bridge toward the 'island' as support
+- More features for making mixing extruding color printing optimal
 
-If you are really interested in waste-free 3d printing have a look at the cool project that is recycling your filament: [recyclefabrik.de](https://recyclingfabrik.com)
-PLEC donates 85% of it's income to the SFS global solutions fund: [SFS fund](https://sfs.earth)
+If you are really interested in waste-free 3d printing have a look at the cool project that is recycling your filament: [recyclingfabrik.com](https://recyclingfabrik.com)
+
+FYI: PLEC donates 85% of it's income to the SFS global solutions fund: [SFS.earth](https://sfs.earth)
 
 ## What are Pleccer's special features?
 
