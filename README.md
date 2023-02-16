@@ -1,77 +1,85 @@
+# IMPORTANT!! This slicer will be released in half February 2023 and the repo will then be updated with the code of the stable version as well as downloadable as release file for Linux, Mac and Windows. Please do not clone atm because it is not uploaded yet.
 
-![PrusaSlicer logo](/resources/icons/PrusaSlicer.png?raw=true)
+# Pleccer
+![plec-logo2-19](https://user-images.githubusercontent.com/124889495/219346911-d85ae47a-7f43-414c-a92f-dc6761cb9e36.png) 
 
-# PrusaSlicer
+##**A slicer focused on supporting waste-free multicolor 3D printing based on PrusaSlicer**
 
-You may want to check the [PrusaSlicer project page](https://www.prusa3d.com/prusaslicer/).
-Prebuilt Windows, OSX and Linux binaries are available through the [git releases page](https://github.com/prusa3d/PrusaSlicer/releases) or from the [Prusa3D downloads page](https://www.prusa3d.com/drivers/). There are also [3rd party Linux builds available](https://github.com/prusa3d/PrusaSlicer/wiki/PrusaSlicer-on-Linux---binary-distributions).
+Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing color 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
 
-PrusaSlicer takes 3D models (STL, OBJ, AMF) and converts them into G-code
-instructions for FFF printers or PNG layers for mSLA 3D printers. It's
-compatible with any modern printer based on the RepRap toolchain, including all
-those based on the Marlin, Prusa, Sprinter and Repetier firmware. It also works
-with Mach3, LinuxCNC and Machinekit controllers.
 
-PrusaSlicer is based on [Slic3r](https://github.com/Slic3r/Slic3r) by Alessandro Ranellucci and the RepRap community.
+## Support Pleccer development
 
-See the [project homepage](https://www.prusa3d.com/slic3r-prusa-edition/) and
-the [documentation directory](doc/) for more information.
+Pleccer is fully developed by unpaid individuals and tries to do so fully open-source, that means a lot of work to make the code clean and readable and all totally unpaid. Please consider supporting Pleccer and making a donation on the community website: [plec.community](https://plec.community).
 
-### What language is it written in?
+We will make features possible, that will really make Pleccer work totally waste-free and make durable printing a reality.
+Features that we are making a reality:
 
-All user facing code is written in C++, and some legacy code as well as unit
-tests are written in Perl. Perl is not required for either development or use
-of PrusaSlicer.
+- Infill by specific extruder; use your wrongly bought or special-fit filament on the infill of your print
+- No purge tower; instead using wipe-into-support and -infill, plus it will give info on extra volume needed for purging and option to load another model for wipe-into-object.
+- Support-free printing; or to be fair: optimized for the least supports. Pleccer will in the future support 'from object-corner' support that prints from an outside facing corner of the object so you use only a small bridge toward the 'island' as support
+- All options required for mixing extruding color printing made easy
 
-The slicing core is the `libslic3r` library, which can be built and used in a standalone way.
-The command line interface is a thin wrapper over `libslic3r`.
+If you are really interested in waste-free 3d printing have a look at the cool project that is recycling your filament: [recyclefabrik.de](https://recyclingfabrik.com)
+PLEC donates 85% of it's income to the SFS global solutions fund: [SFS fund](https://sfs.earth)
 
-### What are PrusaSlicer's main features?
+## What are Pleccer's special features?
 
-Key features are:
+* Mixing color g-code generation based on calibrated data and the color you pick
+* Improved color picker (thanks to [colorgrab](https://github.com/nielssp/colorgrab))
+* Mixing color calibration setting (requires a (diy) color measurer)
+* Enhanced smart retraction and gradient change calibration and automatic model updating for purge-free printing (no prime tower/purge)
+* Includes Arc overhang infill ["Multiplex"-version](https://github.com/stmcculloch/arc-overhang/issues/10) for support-free printing with also a spiral-mode for pedestal-connected overhangs
+* Includes smart island-only tree support setting for use with arc infill overhangs to have only the really required supports printed
+* Includes Lightning infill for faster printing
+* Includes Arachne g-code generation
+* It has also all the current PrusaSlicer's features
 
-* **multi-platform** (Linux/Mac/Win) and packaged as standalone-app with no dependencies required
-* complete **command-line interface** to use it with no GUI
-* multi-material **(multiple extruders)** object printing
-* multiple G-code flavors supported (RepRap, Makerbot, Mach3, Machinekit etc.)
-* ability to plate **multiple objects having distinct print settings**
-* **multithread** processing
+### What are the main features?
+
+* **Multi-platform** (Linux/Mac/Win) and packaged as standalone-app with no dependencies required
+* Complete **command-line interface** to use it without GUI
+* Multi-material **(multiple extruders)** object printing
+* Multiple G-code flavors supported (RepRap, Makerbot, Mach3, Machinekit, etc.)
+* Ability to plate **multiple objects having distinct print settings**
+* **Multithread** processing
 * **STL auto-repair** (tolerance for broken models)
-* wide automated unit testing
+* Wide automated unit testing
 
 Other major features are:
 
-* combine infill every 'n' perimeters layer to speed up printing
+* Combine infill every 'n' perimeters layer & varying density to speed up printing
 * **3D preview** (including multi-material files)
-* **multiple layer heights** in a single print
-* **spiral vase** mode for bumpless vases
-* fine-grained configuration of speed, acceleration, extrusion width
-* several infill patterns including honeycomb, spirals, Hilbert curves
-* support material, raft, brim, skirt
-* **standby temperature** and automatic wiping for multi-extruder printing
-* [customizable **G-code macros**](https://github.com/prusa3d/PrusaSlicer/wiki/Slic3r-Prusa-Edition-Macro-Language) and output filename with variable placeholders
-* support for **post-processing scripts**
-* **cooling logic** controlling fan speed and dynamic print speed
+* **Multiple layer heights** in a single print
+* **Spiral vase** mode for bumpless vases
+* Fine adjustment of speed, acceleration, and extrusion width
+* Several infill patterns including honeycomb, spirals, Hilbert curves, gyroid
+* Support material, raft, brim, skirt
+* **Standby temperature** and automatic wiping for multi-extruder printing
+* [Customizable **G-code macros**](https://github.com/prusa3d/PrusaSlicer/wiki/Slic3r-Prusa-Edition-Macro-Language) and output filename with variable placeholders
+* Support for **post-processing scripts**
+* **Cooling logic** controlling fan speed and dynamic print speed
+* Flushing transition-filament into infill/object during filament change
+* Support STEP format
 
-### Development
 
-If you want to compile the source yourself, follow the instructions on one of
-these documentation pages:
-* [Linux](doc/How%20to%20build%20-%20Linux%20et%20al.md)
-* [macOS](doc/How%20to%20build%20-%20Mac%20OS.md)
-* [Windows](doc/How%20to%20build%20-%20Windows.md)
+## How to compile
+Following platforms are currently supported to compile:
+- Windows 64-bit, [Compile Guide](https://github.com/pleccer/Pleccer/wiki/Windows-Compile-Guide)
+- Mac 64-bit, [Compile Guide](https://github.com/pleccer/Pleccer/wiki/Mac-Compile-Guide)
+- Linux 64-bit, [Compile Guide](https://github.com/pleccer/Pleccer/wiki/Linux-Compile-Guide)
 
-### Can I help?
+## Report issue
+You can add an issue to the [github tracker](https://github.com/pleccer/Pleccer/issues) if **it isn't already present.**
 
-Sure! You can do the following to find things that are available to help with:
-* Add an [issue](https://github.com/prusa3d/PrusaSlicer/issues) to the github tracker if it isn't already present.
-* Look at [issues labeled "volunteer needed"](https://github.com/prusa3d/PrusaSlicer/issues?utf8=%E2%9C%93&q=is%3Aopen+is%3Aissue+label%3A%22volunteer+needed%22)
+## License
+Pleccer is licensed under the GNU Affero General Public License, version 3. 
+Pleccer is based on PrusaSlicer by PrusaResearch.
 
-### What's PrusaSlicer license?
+PrusaSlicer is licensed under the GNU Affero General Public License, version 3. PrusaSlicer is owned by Prusa Research. PrusaSlicer is originally based on Slic3r by Alessandro Ranellucci.
 
-PrusaSlicer is licensed under the _GNU Affero General Public License, version 3_.
-The PrusaSlicer is originally based on Slic3r by Alessandro Ranellucci.
+Slic3r is licensed under the GNU Affero General Public License, version 3. Slic3r was created by Alessandro Ranellucci with the help of many other contributors.
 
-### How can I use PrusaSlicer from the command line?
+The GNU Affero General Public License, version 3 ensures that if you use any part of this software in any way (even behind a web server), your software must be released under the same license.
 
-Please refer to the [Command Line Interface](https://github.com/prusa3d/PrusaSlicer/wiki/Command-Line-Interface) wiki page.
+The networking plugin is based on non-free libraries. It is optional to Pleccer and provides extended functionalities for users.
