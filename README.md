@@ -1,9 +1,9 @@
 # IMPORTANT!! This slicer will be released in half February 2023 and the repo will then be updated with the code of the stable version as well as downloadable as release file for Linux, Mac and Windows. Please do not clone atm because it is not uploaded yet.
 
 # Pleccer
-![plec-logo2-19](https://user-images.githubusercontent.com/124889495/219346911-d85ae47a-7f43-414c-a92f-dc6761cb9e36.png) 
 
-##**A slicer focused on supporting waste-free multicolor 3D printing based on PrusaSlicer**
+### **A slicer focused on supporting waste-free multicolor 3D printing based on PrusaSlicer**
+![plec-logo2-19](https://user-images.githubusercontent.com/124889495/219346911-d85ae47a-7f43-414c-a92f-dc6761cb9e36.png) 
 
 Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing color 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
 
