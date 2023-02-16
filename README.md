@@ -58,7 +58,7 @@ Other major features are:
 * Several infill patterns including honeycomb, spirals, Hilbert curves, gyroid
 * Support material, raft, brim, skirt
 * **Standby temperature** and automatic wiping for multi-extruder printing
-* [Customizable **G-code macros**](https://github.com/prusa3d/PrusaSlicer/wiki/Slic3r-Prusa-Edition-Macro-Language) and output filename with variable placeholders
+* [Customizable **G-code macros**](https://help.prusa3d.com/article/list-of-placeholders_205643) and output filename with variable placeholders
 * Support for **post-processing scripts**
 * **Cooling logic** controlling fan speed and dynamic print speed
 * Flushing transition-filament into infill/object during filament change
@@ -83,5 +83,3 @@ PrusaSlicer is licensed under the GNU Affero General Public License, version 3. 
 Slic3r is licensed under the GNU Affero General Public License, version 3. Slic3r was created by Alessandro Ranellucci with the help of many other contributors.
 
 The GNU Affero General Public License, version 3 ensures that if you use any part of this software in any way (even behind a web server), your software must be released under the same license.
-
-The networking plugin is based on non-free libraries. It is optional to Pleccer and provides extended functionalities for users.
