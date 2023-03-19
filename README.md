@@ -2,9 +2,7 @@
 
 **A slicer focused on supporting multicolor 3D printing based on SuperSlicer**
 
-!!! ### **Please do not clone and build the source code yet, the source is not up to date. See releases for prerelease versions, for now this is the only option to test/try** ###
-
-### **Source will be released in April 2023 together with the stable version** ###
+### **Final version will be released in April 2023 together with the stable version, please be advised the source code is not on this repo but on the new repo at [Pleccer](https://github.com/pleccer/Pleccer)** ###
 
 Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing colorr 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
 
