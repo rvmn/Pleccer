@@ -121,7 +121,13 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 params.connection       = region_config.infill_connection.value;
                 params.priority         = 0;
 
-                if (surface.has_fill_solid()) {
+
+		if (is_bridge && surface.has_pos_bottom()) {
+                        params.pattern = region_config.bridge_fill_pattern.value;
+                        params.connection = region_config.infill_connection_bridge.value;
+                        params.bridge_type = region_config.bridge_type.value;
+			params.density = 1.f;
+                }else if (surface.has_fill_solid()) {
                     params.density = 1.f;
                     params.pattern = ipRectilinear;
                     params.connection = region_config.infill_connection_solid.value;
@@ -129,20 +135,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                         params.connection = region_config.infill_connection_top.value;
                     if (surface.has_pos_bottom())
                         params.connection = region_config.infill_connection_bottom.value;
-                    //FIXME for non-thick bridges, shall we allow a bottom surface pattern?
-                    if (is_bridge) {
-                        params.pattern = region_config.bridge_fill_pattern.value;
-                        params.connection = region_config.infill_connection_bridge.value;
-                        params.bridge_type = region_config.bridge_type.value;
-                    }
                     if (surface.has_pos_external() && !is_bridge)
                         params.pattern = surface.has_pos_top() ? region_config.top_fill_pattern.value : region_config.bottom_fill_pattern.value;
                     else if (!is_bridge)
                         params.pattern = region_config.solid_fill_pattern.value;
                 } else {
-                    if (is_bridge)
-                        params.pattern = region_config.bridge_fill_pattern.value;
-                        params.connection = region_config.infill_connection_bridge.value;
                     if (region_config.infill_dense.getBool()
                         && region_config.fill_density < 40
                         && surface.maxNbSolidLayersOnTop == 1) {
