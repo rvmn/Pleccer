@@ -129,6 +129,14 @@ bool ExPolygon::contains_b(const Point &point) const
     return this->contains(point) || this->has_boundary_point(point);
 }
 
+bool ExPolygon::contains_h(const Point &point) const
+{
+    for (const Polygon &hole : this->holes)
+        if (hole.contains(point))
+            return true;
+    return false;
+}
+
 bool
 ExPolygon::has_boundary_point(const Point &point) const
 {

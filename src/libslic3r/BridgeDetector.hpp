@@ -1,9 +1,18 @@
 #ifndef slic3r_BridgeDetector_hpp_
 #define slic3r_BridgeDetector_hpp_
 
+#include "PrintConfig.hpp"
+#include "ClipperUtils.hpp"
+#include "Line.hpp"
+#include "Point.hpp"
+#include "Polygon.hpp"
+#include "Polyline.hpp"
 #include "libslic3r.h"
 #include "ExPolygon.hpp"
+#include <cmath>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace Slic3r {
 
@@ -21,6 +30,7 @@ public:
     ExPolygons                   expolygons_owned;
     // Lower slices, all regions.
     const ExPolygons   			&lower_slices;
+    bool is_bridge {false};
     // Scaled extrusion width of the infill.
     coord_t                      spacing;
     // Angle resolution for the brute force search of the best bridging angle.
@@ -31,7 +41,7 @@ public:
     BridgeDetector(ExPolygon _expolygon, const ExPolygons &_lower_slices, coord_t _extrusion_width);
     BridgeDetector(const ExPolygons &_expolygons, const ExPolygons &_lower_slices, coord_t _extrusion_width);
     // If bridge_direction_override != 0, then the angle is used instead of auto-detect.
-    bool detect_angle(double bridge_direction_override = 0.);
+    bool detect_angle(double bridge_direction_override = 0, const PrintRegionConfig *params = nullptr);
     Polygons coverage(double angle = -1, bool precise = true) const;
     void unsupported_edges(double angle, Polylines* unsupported) const;
     Polylines unsupported_edges(double angle = -1) const;
@@ -47,8 +57,9 @@ private:
 
         double angle;
         double coverage;
-
         float along_perimeter_length;
+        Polyline _pedestal;
+	bool has_overhang_holes = false;
         coordf_t total_length_anchored = 0;
         coordf_t median_length_anchor = 0;
         coordf_t max_length_anchored = 0;
@@ -63,6 +74,9 @@ public:
 
     // Open lines representing the supporting edges.
     Polylines _edges;
+
+    Polyline _pedestal;
+    bool has_overhang_holes {false};
     // Closed polygons representing the supporting areas.
     ExPolygons _anchor_regions;
 };

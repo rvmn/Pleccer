@@ -384,7 +384,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                         // Bridge was not detected (likely it is only supported at one side). Still it is a surface filled in
                         // using a bridging flow, therefore it makes sense to respect the custom bridging direction.
                         bridges[idx_last].bridge_angle = custom_angle;
-                    }else if (bd.detect_angle(custom_angle)) {
+                    }else if (bd.detect_angle(custom_angle, &this->region().config())) {
                         bridges[idx_last].bridge_angle = bd.angle;
                         if (this->layer()->object()->has_support()) {
                             //polygons_append(this->bridged, intersection(bd.coverage(), to_polygons(initial)));
@@ -393,6 +393,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                     } else {
                         bridges[idx_last].bridge_angle = 0;
                     }
+		    if(!bd._pedestal.empty()) bridges[idx_last].pedestal = (Polyline)bd._pedestal;
                     // without safety offset, artifacts are generated (GH #2494)
                     surfaces_append(bottom, union_safety_offset_ex(grown), bridges[idx_last]);
                 }

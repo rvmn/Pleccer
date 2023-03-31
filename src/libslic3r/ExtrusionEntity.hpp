@@ -98,8 +98,8 @@ inline bool is_perimeter(ExtrusionRole role)
 {
     return role == erPerimeter
         || role == erExternalPerimeter
-        || role == erThinWall
-        || role == erOverhangPerimeter;
+        || role == erThinWall;
+        //|| role == erOverhangPerimeter;
 }
 
 inline bool is_infill(ExtrusionRole role)
@@ -109,7 +109,8 @@ inline bool is_infill(ExtrusionRole role)
         || role == erInternalInfill
         || role == erSolidInfill
         || role == erTopSolidInfill
-        || role == erIroning;
+        || role == erIroning
+        || role == erOverhangPerimeter;
 }
 
 inline bool is_solid_infill(ExtrusionRole role)

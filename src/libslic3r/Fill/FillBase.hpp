@@ -15,6 +15,7 @@
 #include "../PrintConfig.hpp"
 #include "../Exception.hpp"
 #include "../Utils.hpp"
+#include "../Surface.hpp"
 
 #include "../ExPolygon.hpp"
 #include "../ExtrusionEntity.hpp"
@@ -160,6 +161,7 @@ protected:
         const FillParams                & /* params */, 
         unsigned int                      /* thickness_layers */,
         const std::pair<float, Point>   & /* direction */, 
+	const Polyline            /* pedestal */,
         ExPolygon                         /* expolygon */,
         Polylines                       & /* polylines_out */) const {
         BOOST_LOG_TRIVIAL(error)<<"Error, the fill isn't implemented";
@@ -170,6 +172,7 @@ protected:
     virtual coord_t _line_spacing_for_density(float density) const;
 
     virtual std::pair<float, Point> _infill_direction(const Surface *surface) const;
+    virtual Polyline _infill_pedestal(const Surface *surface) const;
 
     void do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, ExtrusionEntitiesPtr& coll_out) const;
 

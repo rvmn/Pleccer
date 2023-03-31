@@ -290,6 +290,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver& /* ne
             || opt_key == "gcode_flavor"
             || opt_key == "high_current_on_filament_swap"
             || opt_key == "infill_first"
+            || opt_key == "overhang_infill_first"
             || opt_key == "single_extruder_multi_material"
             || opt_key == "temperature"
             || opt_key == "wipe_tower"

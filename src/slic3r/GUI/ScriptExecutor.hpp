@@ -3,8 +3,12 @@
 
 #include "libslic3r/Config.hpp"
 #include "OptionsGroup.hpp"
-
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/erase.hpp>
+#include <boost/filesystem/operations.hpp>
 #include <angelscript/include/angelscript.h>
+#include <boost/filesystem/string_file.hpp>
+#include "boost/lexical_cast.hpp"
 #include <angelscript/add_on/scriptbuilder/scriptbuilder.h>
 
 namespace Slic3r { namespace GUI {

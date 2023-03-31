@@ -14,6 +14,7 @@
 
 #include "FillBase.hpp"
 #include "FillConcentric.hpp"
+#include "FillArc.hpp"
 #include "FillHoneycomb.hpp"
 #include "Fill3DHoneycomb.hpp"
 #include "FillGyroid.hpp"
@@ -32,6 +33,7 @@ Fill* Fill::new_from_type(const InfillPattern type)
 {
     switch (type) {
     case ipConcentric:          return new FillConcentric();
+    case ipArc:                 return new FillArc();
     case ipConcentricGapFill:   return new FillConcentricWGapFill();
     case ipHoneycomb:           return new FillHoneycomb();
     case ip3DHoneycomb:         return new Fill3DHoneycomb();
@@ -61,7 +63,7 @@ Fill* Fill::new_from_type(const InfillPattern type)
 #if HAS_LIGHTNING_INFILL
     case ipLightning:           return new FillLightning::Filler();
 #endif // HAS_LIGHTNING_INFILL
-    default: throw Slic3r::InvalidArgument("unknown type");
+    default: throw Slic3r::InvalidArgument("unknown infill type");
     }
 }
 
@@ -83,6 +85,7 @@ Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) c
             params,
             surface->thickness_layers,
             _infill_direction(surface),
+	    _infill_pedestal(surface),
             std::move(expp[i]),
             polylines_out);
     return polylines_out;
@@ -154,6 +157,11 @@ std::pair<float, Point> Fill::_infill_direction(const Surface *surface) const
 
     out_angle += float(M_PI/2.);
     return std::pair<float, Point>(out_angle, out_shift);
+}
+
+Polyline Fill::_infill_pedestal(const Surface *surface) const
+{
+    return (Polyline)surface->pedestal;
 }
 
 double Fill::compute_unscaled_volume_to_fill(const Surface* surface, const FillParams& params) const {

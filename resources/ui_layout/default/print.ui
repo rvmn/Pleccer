@@ -156,6 +156,10 @@ group:title_width$0:Infill
 		setting:label_left:label_width$20:label$Bottom:bottom_fill_pattern
 		setting:label$_:width$18:infill_connection_bottom
 	end_line
+        line:_
+                setting:label_left:label_width$20:label$Bridge:bridge_fill_pattern
+                setting:label$_:width$18:infill_connection_bridge
+        end_line
 group:Reducing printing time
 	setting:infill_every_layers
 	setting:infill_only_where_needed
@@ -441,6 +445,13 @@ group:Output file
 	setting:full_width:output_filename_format
 group:Other
     gcode_substitutions
+group:Bridge Detection Scoring
+	setting:bds_ratio_length
+	setting:bds_ratio_nr
+	setting:bds_median_length
+	setting:bds_max_length
+	setting:arc_radius
+	setting:arc_infill_raylen
 group:Post-processing script
 	setting:full_width:height$5:post_process
 	post_process_explanation

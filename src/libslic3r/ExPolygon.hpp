@@ -54,6 +54,7 @@ public:
     bool contains(const Polylines &polylines) const;
     bool contains(const Point &point) const;
     bool contains_b(const Point &point) const;
+    bool contains_h(const Point &point) const;
     bool has_boundary_point(const Point &point) const;
 
     // Does this expolygon overlap another expolygon?

@@ -8,6 +8,7 @@
 #include <system_error>
 
 #include <boost/system/error_code.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "libslic3r.h"
 

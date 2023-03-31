@@ -9,6 +9,7 @@
 #include <vector>
 #include <map>
 #include <vector>
+#include <boost/algorithm/string.hpp>
 
 class wxColourPickerCtrl;
 class wxBookCtrlBase;

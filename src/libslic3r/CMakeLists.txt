@@ -64,6 +64,8 @@ add_library(libslic3r STATIC
     Fill/FillBase.hpp
     Fill/FillConcentric.cpp
     Fill/FillConcentric.hpp
+    Fill/FillArc.cpp
+    Fill/FillArc.hpp
     Fill/FillHoneycomb.cpp
     Fill/FillHoneycomb.hpp
     Fill/FillGyroid.cpp

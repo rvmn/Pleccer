@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <cassert>
 #include <string_view>
+#include <boost/lexical_cast.hpp>
 
 #ifdef __APPLE__
 #include <xlocale.h>

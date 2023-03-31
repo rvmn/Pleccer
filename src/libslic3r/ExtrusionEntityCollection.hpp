@@ -102,7 +102,7 @@ public:
     static ExtrusionEntityCollection chained_path_from(const ExtrusionEntitiesPtr &extrusion_entities, const Point &start_near, ExtrusionRole role = erMixed);
     ExtrusionEntityCollection chained_path_from(const Point &start_near, ExtrusionRole role = erNone) const {
         if (role == erNone) role = this->role();
-        if( this->no_sort || (role == erMixed) )
+        if ( this->no_sort || (role == erMixed)|| (role == erInternalInfill))
             return *this;
         else
             return chained_path_from(this->m_entities, start_near, role);

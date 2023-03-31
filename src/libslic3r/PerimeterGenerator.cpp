@@ -239,7 +239,7 @@ void PerimeterGenerator::process()
                             BridgeDetector detector{ unsupported,
                                 lower_island.expolygons,
                                 perimeter_spacing };
-                            if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value)))
+                            if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value), this->config))
                                 expolygons_append(bridgeable, union_ex(detector.coverage(-1, true)));
                         }
                         if (!bridgeable.empty()) {
@@ -394,7 +394,7 @@ void PerimeterGenerator::process()
                         // store the results
                         last = diff_ex(last, unsupported_filtered, ApplySafetyOffset::Yes);
                         //remove "thin air" polygons (note: it assumes that all polygons below will be extruded)
-                        for (int i = 0; i < last.size(); i++) {
+                        /*for (int i = 0; i < last.size(); i++) {
                             if (intersection_ex(support, ExPolygons() = { last[i] }).empty()) {
                                 this->fill_surfaces->append(
                                     ExPolygons() = { last[i] },
@@ -402,7 +402,7 @@ void PerimeterGenerator::process()
                                 last.erase(last.begin() + i);
                                 i--;
                             }
-                        }
+                        }*/
                     }
                 }
             }
@@ -425,7 +425,7 @@ void PerimeterGenerator::process()
         int        loop_number = this->config->perimeters + surface.extra_perimeters - 1 + extra_odd_perimeter;  // 0-indexed loops
         surface_idx++;
 
-        if ((layer->id() == 0 && this->config->only_one_perimeter_first_layer) || (this->config->only_one_perimeter_top && loop_number > 0 && this->upper_slices == NULL)) {
+        if ((layer->id() == 0 && this->config->only_one_perimeter_first_layer) || (layer->id() == 0 && this->config->only_one_perimeter_overhang) || (this->config->only_one_perimeter_top && loop_number > 0 && this->upper_slices == NULL)) {
             loop_number = 0;
         }
 
@@ -477,7 +477,7 @@ void PerimeterGenerator::process()
                         BridgeDetector detector{ unsupported,
                             lower_island.expolygons,
                             perimeter_spacing };
-                        if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value)))
+                        if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value), this->config))
                             expolygons_append(bridgeable, union_ex(detector.coverage(-1, true)));
                     }
                     if (!bridgeable.empty()) {
@@ -504,7 +504,7 @@ void PerimeterGenerator::process()
 
                 if (offset_ex(overhangs_unsupported, -offset / 2.).size() > 0) {
                     //allow this loop to be printed in reverse
-                    has_steep_overhang = true;
+                    //has_steep_overhang = true;
                 }
             }
 
@@ -815,8 +815,8 @@ void PerimeterGenerator::process()
                     exp.simplify((resolution < SCALED_EPSILON ? SCALED_EPSILON : resolution), &last);
 
                 //store surface for top infill if only_one_perimeter_top
-                if (perimeter_idx == 0 && (config->only_one_perimeter_top && this->upper_slices != NULL)) {
-                    if (this->config->only_one_perimeter_top_other_algo) {
+                if ((perimeter_idx == 0 && (config->only_one_perimeter_top && this->upper_slices != NULL)) || config->only_one_perimeter_overhang && has_overhang) {
+                    if (this->config->only_one_perimeter_top_other_algo || config->only_one_perimeter_overhang) {
                         //split the polygons with top/not_top
                         //get the offset from solid surface anchor
                         coord_t offset_top_surface = scale_(config->external_infill_margin.get_abs_value(

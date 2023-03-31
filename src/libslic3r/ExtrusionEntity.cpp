@@ -307,7 +307,7 @@ ExtrusionRole ExtrusionEntity::string_to_role(const std::string_view role)
     else if (role == L("External perimeter"))
         return erExternalPerimeter;
     else if (role == L("Overhang perimeter"))
-        return erOverhangPerimeter;
+        return erBridgeInfill;
     else if (role == L("Internal infill"))
         return erInternalInfill;
     else if (role == L("Solid infill"))

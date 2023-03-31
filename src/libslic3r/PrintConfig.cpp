@@ -70,6 +70,13 @@ static const t_config_enum_values s_keys_map_WipeAlgo{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WipeAlgo)
 
+static const t_config_enum_values s_keys_map_ArcPosition{
+    {"Middle",  apMiddle},
+    {"Side",  apSide}
+};
+
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(ArcPosition)
+
 static const t_config_enum_values s_keys_map_GCodeFlavor{
     {"reprapfirmware",  gcfRepRap},
     {"repetier",        gcfRepetier},
@@ -141,6 +148,7 @@ static const t_config_enum_values s_keys_map_InfillPattern{
     {"line",                ipLine},
     {"concentric",          ipConcentric},
     {"concentricgapfill",   ipConcentricGapFill},
+    {"arc",                 ipArc},
     {"honeycomb",           ipHoneycomb},
     {"3dhoneycomb",         ip3DHoneycomb},
     {"gyroid",              ipGyroid},
@@ -1283,6 +1291,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("monotonicgapfill");
     def->enum_values.push_back("concentric");
     def->enum_values.push_back("concentricgapfill");
+    def->enum_values.push_back("arc");
     def->enum_values.push_back("hilbertcurve");
     def->enum_values.push_back("archimedeanchords");
     def->enum_values.push_back("octagramspiral");
@@ -1293,6 +1302,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Monotonic (filled)"));
     def->enum_labels.push_back(L("Concentric"));
     def->enum_labels.push_back(L("Concentric (filled)"));
+    def->enum_labels.push_back(L("Arc"));
     def->enum_labels.push_back(L("Hilbert Curve"));
     def->enum_labels.push_back(L("Archimedean Chords"));
     def->enum_labels.push_back(L("Octagram Spiral"));
@@ -1314,6 +1324,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("monotonicgapfill");
     def->enum_values.push_back("concentric");
     def->enum_values.push_back("concentricgapfill");
+    def->enum_values.push_back("arc");
     def->enum_values.push_back("hilbertcurve");
     def->enum_values.push_back("archimedeanchords");
     def->enum_values.push_back("octagramspiral");
@@ -1323,6 +1334,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Monotonic (filled)"));
     def->enum_labels.push_back(L("Concentric"));
     def->enum_labels.push_back(L("Concentric (filled)"));
+    def->enum_labels.push_back(L("Arc"));
     def->enum_labels.push_back(L("Hilbert Curve"));
     def->enum_labels.push_back(L("Archimedean Chords"));
     def->enum_labels.push_back(L("Octagram Spiral"));
@@ -1344,6 +1356,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("monotonicgapfill");
     def->enum_values.push_back("concentric");
     def->enum_values.push_back("concentricgapfill");
+    def->enum_values.push_back("arc");
     def->enum_values.push_back("hilbertcurve");
     def->enum_values.push_back("archimedeanchords");
     def->enum_values.push_back("octagramspiral");
@@ -1354,11 +1367,85 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Monotonic (filled)"));
     def->enum_labels.push_back(L("Concentric"));
     def->enum_labels.push_back(L("Concentric (filled)"));
+    def->enum_labels.push_back(L("Arc"));
     def->enum_labels.push_back(L("Hilbert Curve"));
     def->enum_labels.push_back(L("Archimedean Chords"));
     def->enum_labels.push_back(L("Octagram Spiral"));
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill));
+
+    def = this->add("bridge_fill_pattern", coEnum);
+    def->label = L("Bridging fill pattern");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("Fill pattern for bridges and bridge infill. Recommended is using Arc infill."
+    "\nFor more info see: https://github.com/stmcculloch/arc-overhang");
+    def->enum_keys_map = &ConfigOptionEnum<InfillPattern>::get_enum_values();
+    def->enum_values.push_back("arc");
+    def->enum_values.push_back("rectilinear");
+    def->enum_values.push_back("rectilineargapfill");
+    def->enum_values.push_back("monotonic");
+    def->enum_values.push_back("monotonicgapfill");
+    def->enum_labels.push_back(L("Arc"));
+    def->enum_labels.push_back(L("Rectilinear"));
+    def->enum_labels.push_back(L("Rectilinear (filled)"));
+    def->enum_labels.push_back(L("Monotonic"));
+    def->enum_labels.push_back(L("Monotonic (filled)"));
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipRectilinearWGapFill));
+
+    def = this->add("bds_ratio_length", coFloat);
+    def->category = OptionCategory::output;
+    def->label = L("Scoring on total length of anchored lines in overhang");
+    def->tooltip = L("Given in percentage of total");
+    def->sidetext = L("%");
+    def->min = -10000.0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(7060.));
+
+    def = this->add("bds_ratio_nr", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("Given in percentage of total");
+    def->label = L("Scoring on total number of anchored lines in overhang");
+    def->sidetext = L("%");
+    def->mode = comAdvanced;
+    def->min = -10000.0;
+    def->set_default_value(new ConfigOptionFloat(0.));
+
+    def = this->add("bds_median_length", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("Given in percentage of total");
+    def->label = L("Scoring on median length of anchored lines in overhang");
+    def->sidetext = L("%");
+    def->min = -10000.0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(40.));
+
+    def = this->add("bds_max_length", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("Given in percentage of total");
+    def->label = L("Scoring on max length of anchored lines in overhang");
+    def->sidetext = L("%");
+    def->min = -10000.0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0));
+
+    def = this->add("arc_radius", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("");
+    def->label = L("Radius of the outer arc");
+    def->min = 0;
+    def->sidetext = L("");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.55));
+
+    def = this->add("arc_infill_raylen", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("");
+    def->label = L("Length of the ray used for edge intersection");
+    def->min = 0;
+    def->sidetext = L("");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(12.));
 
     def = this->add("enforce_full_fill_volume", coBool);
     def->label = L("Enforce 100% fill volume");
@@ -2253,6 +2340,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("cubic");
     def->enum_values.push_back("line");
     def->enum_values.push_back("concentric");
+    def->enum_values.push_back("arc");
     def->enum_values.push_back("honeycomb");
     def->enum_values.push_back("3dhoneycomb");
     def->enum_values.push_back("gyroid");
@@ -2273,6 +2361,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back(L("Cubic"));
     def->enum_labels.push_back(L("Line"));
     def->enum_labels.push_back(L("Concentric"));
+    def->enum_labels.push_back(L("Arc"));
     def->enum_labels.push_back(L("Honeycomb"));
     def->enum_labels.push_back(L("3D Honeycomb"));
     def->enum_labels.push_back(L("Gyroid"));
@@ -2884,6 +2973,25 @@ void PrintConfigDef::init_fff_params()
     def->mode = comExpert | comSuSi;
     def->set_default_value(new ConfigOptionEnum<InfillConnection>(icConnected));
 
+    def = this->add("infill_connection_bridge", coEnum);
+    def->label = L("Connection of bridged infill lines");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("Give to the bridge infill algorithm if the infill needs to be connected, and on which perimeters"
+        " Can be useful for art or with high infill/perimeter overlap."
+        " The result may vary between infill types.");
+    def->enum_keys_map = &ConfigOptionEnum<InfillConnection>::get_enum_values();
+    def->enum_values.push_back("connected");
+    def->enum_values.push_back("holes");
+    def->enum_values.push_back("outershell");
+    def->enum_values.push_back("notconnected");
+    def->enum_labels.push_back(L("Connected"));
+    def->enum_labels.push_back(L("Connected to hole perimeters"));
+    def->enum_labels.push_back(L("Connected to outer perimeters"));
+    def->enum_labels.push_back(L("Not connected"));
+    def->mode = comExpert | comSuSi;
+    def->set_default_value(new ConfigOptionEnum<InfillConnection>(icConnected));
+
+
     def = this->add("infill_dense", coBool);
     def->label = L("Dense infill layer");
     def->full_label = L("Dense infill layer");
@@ -2963,6 +3071,27 @@ void PrintConfigDef::init_fff_params()
     def->tooltip = L("This option will switch the print order of perimeters and infill, making the latter first.");
     def->mode = comExpert | comPrusa;
     def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("overhang_infill_first", coBool);
+    def->label = L("Overhangs before perimeters");
+    def->full_label = L("Overhang infill before perimeters");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("If you have overhangs this will print the overhang first. Choose Arc infill as bridge infill for best results.");
+    def->mode = comExpert | comPrusa;
+    def->set_default_value(new ConfigOptionBool(true));
+
+    def = this->add("arc_position", coEnum);
+    def->label = L("Overhangs");
+    def->full_label = L("Arc overhang position");
+    def->category = OptionCategory::infill;
+    def->tooltip = L("Arc overhang position.");
+    def->enum_keys_map = &ConfigOptionEnum<ArcPosition>::get_enum_values();
+    def->enum_values.push_back("middle");
+    def->enum_values.push_back("side");
+    def->enum_labels.push_back(L("Middle"));
+    def->enum_labels.push_back(L("Side"));
+    def->mode = comAdvancedE | comPrusa;
+    def->set_default_value(new ConfigOptionEnum<ArcPosition>(apMiddle));
 
     def = this->add("infill_only_where_needed", coBool);
     def->label = L("Only infill where needed");
@@ -3651,6 +3780,13 @@ void PrintConfigDef::init_fff_params()
     def->mode = comSimpleAE | comSuSi;
     def->set_default_value(new ConfigOptionBool(true));
 
+    def = this->add("only_one_perimeter_overhang", coBool);
+    def->label = L("Only one perimeter on Overhang surfaces");
+    def->category = OptionCategory::perimeter;
+    def->tooltip = L("Use only one perimeter on overhang surface, to give more space to the top infill pattern.");
+    def->mode = comSimpleAE | comSuSi;
+    def->set_default_value(new ConfigOptionBool(true));
+
     def = this->add("only_one_perimeter_top_other_algo", coBool);
     def->label = L("Only one peri - other algo");
     def->category = OptionCategory::perimeter;
@@ -3773,7 +3909,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("noperi");
     def->enum_values.push_back("bridges");
     def->enum_values.push_back("bridgesoverhangs");
-    def->enum_values.push_back("filled");
+    def->enum_values.push_back("filled"); 
     def->enum_labels.push_back(L("Disabled"));
     def->enum_labels.push_back(L("Remove perimeters"));
     def->enum_labels.push_back(L("Keep only bridges"));
@@ -5697,6 +5833,42 @@ void PrintConfigDef::init_fff_params()
     def->is_vector_extruder = true;
     def->set_default_value(new ConfigOptionFloats{ 0.f });
 
+    def = this->add("bds_ratio_length", coFloat);
+    def->category = OptionCategory::output;
+    def->label = L("Scoring on total length of anchored lines in overhang");
+    def->tooltip = L("Given in percentage of total");
+    def->min = 0;
+    def->sidetext = L("%");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloat(4060.));
+
+    def = this->add("bds_ratio_nr", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("Given in percentage of total");
+    def->label = L("Scoring on total number of anchored lines in overhang");
+    def->min = 0;
+    def->sidetext = L("%");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloat(0.));
+
+    def = this->add("bds_median_length", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("Given in percentage of total");
+    def->label = L("Scoring on median length of anchored lines in overhang");
+    def->min = 0;
+    def->sidetext = L("%");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloat(0.));
+
+    def = this->add("bds_max_length", coFloat);
+    def->category = OptionCategory::output;
+    def->tooltip = L("Given in percentage of total");
+    def->label = L("Scoring on max length of anchored lines in overhang");
+    def->min = 0;
+    def->sidetext = L("%");
+    def->mode = comAdvancedE | comSuSi;
+    def->set_default_value(new ConfigOptionFloat(20.));
+
     def = this->add("wipe_tower_bridging", coFloat);
     def->label = L("Maximal bridging distance");
     def->tooltip = L("Maximal distance between supports on sparse infill sections. ");
@@ -6975,7 +7147,7 @@ void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &va
     };
 
     // In PrusaSlicer 2.3.0-alpha0 the "monotonic" infill was introduced, which was later renamed to "monotonous".
-    if (value == "monotonous" && (opt_key == "top_fill_pattern" || opt_key == "bottom_fill_pattern" || opt_key == "fill_pattern" || opt_key == "solid_fill_pattern" || opt_key == "support_material_interface_pattern"))
+    if (value == "monotonous" && (opt_key == "top_fill_pattern" || opt_key == "bottom_fill_pattern" || opt_key == "fill_pattern" || opt_key == "solid_fill_pattern" || opt_key == "bridge_fill_pattern" || opt_key == "support_material_interface_pattern"))
         value = "monotonic";
     // some changes has occurs between rectilineargapfill and monotonicgapfill. Set them at the right value for each type
     if (value == "rectilineargapfill" && (opt_key == "top_fill_pattern" || opt_key == "bottom_fill_pattern" || opt_key == "fill_pattern" || opt_key == "support_material_interface_pattern"))
@@ -7270,6 +7442,7 @@ std::unordered_set<std::string> prusa_export_to_remove_keys = {
 "small_perimeter_max_length",
 "small_perimeter_min_length",
 "solid_fill_pattern",
+"bridge_fill_pattern",
 "solid_infill_acceleration",
 "solid_infill_extrusion_spacing",
 "start_gcode_manual",
@@ -8203,6 +8376,10 @@ std::string validate(const FullPrintConfig& cfg)
     // --solid-fill-pattern
     if (!print_config_def.get("solid_fill_pattern")->has_enum_value(cfg.solid_fill_pattern.serialize()))
         return "Invalid value for --solid-fill-pattern";
+    
+    // --bridge-fill-pattern
+    if (!print_config_def.get("bridge_fill_pattern")->has_enum_value(cfg.bridge_fill_pattern.serialize()))
+        return "Invalid value for --bridge-fill-pattern";
 
     // --brim-ears-pattern
     if (!print_config_def.get("brim_ears_pattern")->has_enum_value(cfg.brim_ears_pattern.serialize()))

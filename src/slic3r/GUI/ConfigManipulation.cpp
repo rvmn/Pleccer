@@ -323,7 +323,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     bool have_perimeters = config->opt_int("perimeters") > 0;
     for (auto el : { "ensure_vertical_shell_thickness", "external_perimeter_speed", "extra_perimeters", "extra_perimeters_overhangs", "extra_perimeters_odd_layers",
         "external_perimeters_first", "external_perimeters_vase", "external_perimeter_extrusion_width", "external_perimeter_extrusion_spacing",
-        "no_perimeter_unsupported_algo", "only_one_perimeter_top", "overhangs", "overhangs_reverse",
+        "no_perimeter_unsupported_algo", "only_one_perimeter_top","only_one_perimeter_overhang", "overhangs", "overhangs_reverse",
         "perimeter_loop", "perimeter_loop_seam","perimeter_speed",
         "seam_position", "small_perimeter_speed", "small_perimeter_min_length", " small_perimeter_max_length", "spiral_vase",
         "thin_walls", "thin_perimeters"})
@@ -386,6 +386,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
 
     toggle_field("infill_first", (has_solid_infill || have_infill));
 
+    toggle_field("overhang_infill_first", (has_solid_infill || have_infill));
+    
     for (auto el : { "fill_angle", "fill_angle_increment", "bridge_angle", "infill_extrusion_width", "infill_extrusion_spacing",
                     "infill_speed" })
         toggle_field(el, have_infill || has_solid_infill);
@@ -412,7 +414,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     for (auto el : { "bottom_fill_pattern", "infill_connection_bottom" })
         toggle_field(el, has_bottom_solid_infill);
 
-    for (auto el : { "solid_fill_pattern", "infill_connection_solid" })
+     for (auto el : { "solid_fill_pattern", "infill_connection_solid", "bridge_fill_pattern", "infill_connection_bridge" })
         toggle_field(el, has_solid_infill); // should be top_solid_layers") > 1 || bottom_solid_layers") > 1
 
     for (auto el : { "hole_to_polyhole_threshold", "hole_to_polyhole_twisted" })

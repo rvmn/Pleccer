@@ -4,8 +4,20 @@
 #include <set>
 #include <map>
 #include <string>
-
+#include "I18N.hpp"
 #include <boost/algorithm/string/trim_all.hpp>
+#include <boost/algorithm/string/predicate.hpp>
+#include <boost/filesystem/directory.hpp>
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/path.hpp>
+#include <boost/format/format_fwd.hpp>
+#include <boost/locale.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/nowide/cenv.hpp>
+#include <boost/nowide/fstream.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/ptree_fwd.hpp>
+#include <boost/log/trivial.hpp>
 
 #include "libslic3r/Config.hpp"
 #include "libslic3r/Semver.hpp"

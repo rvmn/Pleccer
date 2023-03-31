@@ -34,22 +34,23 @@ BridgeDetector::BridgeDetector(
 
 void BridgeDetector::initialize()
 {
-    // 2 degrees stepping
-    this->resolution = PI/(90); 
+    // 5 degrees stepping
+    this->resolution = PI/(36.0*5.); 
     // output angle not known
     this->angle = -1.;
 
     // Outset our bridge by an arbitrary amout; we'll use this outer margin for detecting anchors.
-    Polygons grown = offset(this->expolygons, float(this->spacing));
-    
+    Polygons grown = offset(this->expolygons, float(this->spacing*.8));
     // Detect possible anchoring edges of this bridging region.
     // Detect what edges lie on lower slices by turning bridge contour and holes
     // into polylines and then clipping them with each lower slice's contour.
     // Currently _edges are only used to set a candidate direction of the bridge (see bridge_direction_candidates()).
     Polygons contours;
     contours.reserve(this->lower_slices.size());
-    for (const ExPolygon &expoly : this->lower_slices)
+    for (const ExPolygon &expoly : this->lower_slices){
+
         contours.push_back(expoly.contour);
+    }
     this->_edges = intersection_pl(to_polylines(grown), contours);
     
     #ifdef SLIC3R_DEBUG
@@ -72,18 +73,26 @@ void BridgeDetector::initialize()
     */
 }
 
-bool BridgeDetector::detect_angle(double bridge_direction_override)
+bool BridgeDetector::detect_angle(double bridge_direction_override, const PrintRegionConfig *params)
 {
-    if (this->_edges.empty() || this->_anchor_regions.empty()) 
+    
+    if (this->_edges.empty() || this->_anchor_regions.empty()){
         // The bridging region is completely in the air, there are no anchors available at the layer below.
         return false;
+    }
 
     std::vector<BridgeDirection> candidates;
     if (bridge_direction_override == 0.) {
         candidates = bridge_direction_candidates();
     } else
         candidates.emplace_back(BridgeDirection(bridge_direction_override));
-    
+
+        
+    if (!candidates.front()._pedestal.empty())
+        this->_pedestal = (Polyline)candidates.front()._pedestal;
+    if (candidates.front().has_overhang_holes)
+        this->has_overhang_holes = true;//(Polylines)candidates.front()._holes;
+
     /*  Outset the bridge expolygon by half the amount we used for detecting anchors;
         we'll use this one to clip our test lines and be sure that their endpoints
         are inside the anchors and not on their contours leading to false negatives. */
@@ -136,9 +145,10 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
                 for (int i = 0; i < _anchor_regions.size(); ++i) {
                     ExPolygon& poly = this->_anchor_regions[i];
                     BoundingBox& polybb = anchor_bb[i];
-                    if (polybb.contains(line.a) && poly.contains(line.a)) { // using short-circuit evaluation to test boundingbox and only then the other
+                    /*if (polybb.contains(line.a) && poly.contains(line.a)) { // using short-circuit evaluation to test boundingbox and only then the other
                         line_a_anchor_idx = i;
-                    }
+                        //candidates[i_angle].angle += 1.5*M_PI;
+                    }*/
                     if (polybb.contains(line.b) && poly.contains(line.b)) { // using short-circuit evaluation to test boundingbox and only then the other
                         line_b_anchor_idx = i;
                     }
@@ -191,6 +201,7 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
                     }
                 }
                 if(good_line) {
+		    this->is_bridge = true;
                     // This line could be anchored at both side and goes over the void to bridge it in its middle.
                     //store stats
                     c.total_length_anchored += len;
@@ -213,9 +224,8 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
             if (!dist_anchored.empty()) {
                 std::sort(dist_anchored.begin(), dist_anchored.end());
                 c.median_length_anchor = dist_anchored[dist_anchored.size() / 2];
+                //if(candidates[i_angle].angle>=0.5*M_PI && candidates[i_angle].angle<=0.75*M_PI) candidates[i_angle].angle += 1.5*M_PI;
             }
-
-
             // size is 20%
         }
     }
@@ -253,7 +263,7 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
                 Lines clipped_lines = intersection_ln(lines, clip_area);
                 for (size_t i = 0; i < clipped_lines.size(); ++i) {
                     const Line& line = clipped_lines[i];
-                    if (expolygons_contain(this->_anchor_regions, line.a) || expolygons_contain(this->_anchor_regions, line.b)) {
+                    if (expolygons_contain(this->_anchor_regions, line.b)){// || expolygons_contain(this->_anchor_regions, line.b)) {
                         // This line has one anchor (or is totally anchored)
                         coordf_t len = line.length();
                         //store stats
@@ -269,11 +279,55 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
                         c.nb_lines_free++;
                     }
                 }
+		//if(!dist_anchored.empty()&&candidates[i_angle].angle<= 0) candidates[i_angle].angle += M_PI;
+            }
+            if(dist_anchored.empty()){
+                // lines.clear();
+                // {
+                //     // Get an oriented bounding box around _anchor_regions.
+                //     BoundingBox bbox = get_extents_rotated(clip_area, -angle);
+                //     // Cover the region with line segments.
+                //     lines.reserve((bbox.max.y() - bbox.min.y() + this->spacing - SCALED_EPSILON) / this->spacing);
+                //     double s = sin(angle);
+                //     double c = cos(angle);
+                //     // The lines be spaced half the line width from the edge
+                //     for (coord_t y = bbox.min.y() + bbox.max.y()/2 + this->spacing / 2; y <= bbox.max.y(); y += this->spacing)
+                //         lines.push_back(Line(
+                //             Point((coord_t)round(c * bbox.min.x() - s * y), (coord_t)round(c * y + s * bbox.min.x())),
+                //             Point((coord_t)round(c * bbox.max.x() - s * y), (coord_t)round(c * y + s * bbox.max.x()))));
+                // }
+                //compute stat on line with anchors, and their lengths.
+                //BridgeDirection& c = candidates[icandidates[i_angle].angle <= .45*PI_angle];
+                //std::vector<coordf_t> dist_anchored;
+                {
+                    Lines clipped_lines = intersection_ln(lines, clip_area);
+                    for (size_t i = 0; i < clipped_lines.size(); ++i) {
+                        const Line& line = clipped_lines[i];
+                        if (expolygons_contain(this->_anchor_regions, line.a)){//} || expolygons_contain(this->_anchor_regions, line.b)) {
+                            // This line has one anchor (or is totally anchorecandidates[i_angle].angle += 1.5*PI;d)
+                            coordf_t len = line.length();
+                            //store stats
+                            c.total_length_anchored += len;
+                            c.max_length_anchored = std::max(c.max_length_anchored, len);
+                            c.nb_lines_anchored++;
+                            dist_anchored.push_back(len);
+                        } else {
+                            // this line could NOT be anchored.
+                            coordf_t len = line.length();
+                            c.total_length_free += len;
+                            c.max_length_free = std::max(c.max_length_free, len);
+                            c.nb_lines_free++;
+                        }
+                    }
+		   if(!dist_anchored.empty()) candidates[i_angle].angle += M_PI;
+                }
             }
             if (c.total_length_anchored == 0. || c.nb_lines_anchored == 0) {
+                candidates[i_angle].angle += 1.5*PI;
                 continue;
             } else {
                 have_coverage = true;
+                //if(candidates[i_angle].angle < .5*PI && candidates[i_angle].angle >= 0.05*M_PI) candidates[i_angle].angle += 1.5*PI;
                 // compute median
                 if (!dist_anchored.empty()) {
                     std::sort(dist_anchored.begin(), dist_anchored.end());
@@ -310,17 +364,19 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
     for (BridgeDirection& c : candidates) {
         c.coverage = 0;
         //ratio_anchored is 70% of the score
-        double ratio_anchored = c.total_length_anchored / (c.total_length_anchored + c.total_length_free);
-        c.coverage = 70 * ratio_anchored;
-        //median is 15% (and need to invert it)
+        double ratio_length_anchored = c.total_length_anchored / (c.total_length_anchored + c.total_length_free);
+        c.coverage = params->bds_ratio_length.value * ratio_length_anchored;
+        double ratio_anchored = c.nb_lines_anchored / (c.nb_lines_anchored + c.nb_lines_free);
+        c.coverage += params->bds_ratio_nr.value * ratio_anchored;
+        //median is 35% (and need to invert it)
         double ratio_median = 1 - double(c.median_length_anchor - min_median_length) / (double)std::max(1., max_median_length - min_median_length);
-        c.coverage += 15 * ratio_median;
-        //max is 15 % (and need to invert it)
+        c.coverage += params->bds_median_length.value * ratio_median;
+        //max is 0% (and need to invert it)
         double ratio_max = 1 - double(c.max_length_anchored - min_max_length) / (double)std::max(1., max_max_length - min_max_length);
-        c.coverage += 15 * ratio_max;
+        c.coverage += params->bds_max_length.value * ratio_max;
         //bonus for perimeter dir
         if (c.along_perimeter_length > 0)
-            c.coverage += 5;
+            c.coverage += 20;
 
     }
     
@@ -332,10 +388,12 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
         if (candidates[i].coverage > candidates[i_best].coverage)
             i_best = i;
 
-    this->angle = candidates[i_best].angle;
-    if (this->angle >= PI)
-        this->angle -= PI;
-    
+    this->angle = candidates[i_best].angle;//  - M_PI;
+    if (this->angle >= 2*PI)
+        this->angle -= 2*PI;
+    else if (this->angle < 0)
+	this->angle += 2*PI;
+
     #ifdef SLIC3R_DEBUG
     printf("  Optimal infill angle is %d degrees\n", (int)Slic3r::Geometry::rad2deg(this->angle));
     #endif
@@ -346,21 +404,25 @@ bool BridgeDetector::detect_angle(double bridge_direction_override)
 std::vector<BridgeDetector::BridgeDirection> BridgeDetector::bridge_direction_candidates(bool only_from_polygon) const
 {
     std::vector<BridgeDirection> angles;
-    // we test angles according to configured resolution
+    Polylines pedestals_or_holes;
+    bool has_overhang_holes = false;
+    Polyline pedestal;
+
+    // we also test angles according to configured resolution
     if (!only_from_polygon)
         for (int i = 0; i <= PI/this->resolution; ++i)
             angles.emplace_back(i * this->resolution);
-    
+
     // we also test angles of each bridge contour
     {
         Lines lines = to_lines(this->expolygons);
         //if many lines, only takes the bigger ones.
         float mean_sqr_size = 0;
-        if (lines.size() > 200) {
-            for (int i = 0; i < 200; i++) {
+        if (lines.size() > 20) {
+            for (int i = 0; i < 20; i++) {
                 mean_sqr_size += (float)lines[i].a.distance_to_square(lines[i].b);
             }
-            mean_sqr_size /= 200;
+            mean_sqr_size /= 20;
             for (Lines::const_iterator line = lines.begin(); line != lines.end(); ++line) {
                 float dist_sqr = line->a.distance_to_square(line->b);
                 if (dist_sqr > mean_sqr_size)
@@ -371,12 +433,29 @@ std::vector<BridgeDetector::BridgeDirection> BridgeDetector::bridge_direction_ca
                 angles.emplace_back(line->direction(), line->a.distance_to_square(line->b));
     }
     
-    /*  we also test angles of each open supporting edge
+    /*  we test angles of each open supporting edge
         (this finds the optimal angle for C-shaped supports) */
-    for (const Polyline &edge : this->_edges)
+        //ExPolygon extmp;
+    for (const Polyline &edge : this->_edges){
         if (edge.first_point() != edge.last_point())
             angles.emplace_back(Line(edge.first_point(), edge.last_point()).direction());
-    
+        else if(this->expolygons.data()->contains_h(edge.bounding_box().center()) && this->expolygons.data()->contains_h(edge.first_point()) && !this->expolygons.data()->contains(edge.first_point()))// && this->expolygons.data()->contains_h(edge.first_point()))// /*&& this->expolygons.data()->on_boundary(edge.first_point(),0.3)*/ && edge.bounding_box().contains(this->expolygons.data()->contour.bounding_box().center()))
+        	pedestals_or_holes.emplace_back((Polyline)edge);
+    }
+    if(!pedestals_or_holes.empty()){
+    	for (const ExPolygon& poly : this->_anchor_regions) {
+            	// Check if pedestal that is found is also intersecting with an anchor region
+		// if not it is not a pedestal but a hole
+		for(Polyline pedhole : pedestals_or_holes){
+            		if(!poly.has_boundary_point(pedhole.first_point()))
+                		has_overhang_holes = true;//holes.emplace_back(pedhole);
+    			else
+				pedestal = pedhole;
+		}
+	}
+	pedestals_or_holes.clear();
+    }
+
     // remove duplicates
     std::sort(angles.begin(), angles.end(), [](const BridgeDirection& bt1, const BridgeDirection& bt2) { return bt1.angle < bt2.angle; });
 
@@ -410,7 +489,7 @@ std::vector<BridgeDetector::BridgeDirection> BridgeDetector::bridge_direction_ca
         }
     }
     //then, if too much angles, delete more
-    while (angles.size() > 200) {
+    while (angles.size() > 20) {
         min_resolution *= 2;
         for (size_t i = 1; i < angles.size(); ++i) {
             if (Slic3r::Geometry::directions_parallel(angles[i].angle, angles[i - 1].angle, min_resolution)) {
@@ -429,7 +508,8 @@ std::vector<BridgeDetector::BridgeDirection> BridgeDetector::bridge_direction_ca
         in case they are parallel (PI, 0) */
     if (angles.size() > 1 && Slic3r::Geometry::directions_parallel(angles.front().angle, angles.back().angle, min_resolution))
         angles.pop_back();
-
+    angles.front()._pedestal = std::move((Polyline)pedestal);
+    angles.front().has_overhang_holes = has_overhang_holes;//std::move((Polylines)holes);
     return angles;
 }
 
@@ -498,7 +578,7 @@ void get_trapezoids3_half(const ExPolygon& expoly, Polygons* polygons, float spa
 {
 
     // get all points of this ExPolygon
-    Points pp = expoly;
+    Points pp = expoly.contour.points;
 
     if (pp.empty()) return;
 
@@ -545,9 +625,8 @@ Polygons BridgeDetector::coverage(double angle, bool precise) const
 {
     if (angle == -1)
         angle = this->angle;
-
+    
     Polygons covered;
-
     if (angle != -1) {
         // Get anchors, convert them to Polygons and rotate them.
         Polygons anchors = to_polygons(this->_anchor_regions);
@@ -613,7 +692,6 @@ Polygons BridgeDetector::coverage(double angle, bool precise) const
                 }
             }
         }
-
         // Unite the trapezoids before rotation, as the rotation creates tiny gaps and intersections between the trapezoids
         // instead of exact overlaps.
         covered = union_(covered);

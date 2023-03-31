@@ -319,6 +319,7 @@ Slic3r::ExPolygons offset_ex(const Slic3r::Polygons &polygons, const double delt
 Slic3r::ExPolygons offset_ex(const Slic3r::ExPolygon &expolygon, const double delta, ClipperLib::JoinType joinType = DefaultJoinType, double miterLimit = DefaultMiterLimit);
 Slic3r::ExPolygons offset_ex(const Slic3r::ExPolygons& expolygons, const double delta, ClipperLib::JoinType joinType = DefaultJoinType, double miterLimit = DefaultMiterLimit);
 Slic3r::ExPolygons offset_ex(const Slic3r::Surfaces &surfaces, const double delta, ClipperLib::JoinType joinType = DefaultJoinType, double miterLimit = DefaultMiterLimit);
+Slic3r::Polylines PolyTreeToPolylines(ClipperLib::PolyTree &&polytree);
 
 inline Slic3r::Polygons   union_safety_offset   (const Slic3r::Polygons   &polygons)   { return offset   (polygons,   ClipperSafetyOffset); }
 inline Slic3r::Polygons   union_safety_offset   (const Slic3r::ExPolygons &expolygons) { return offset   (expolygons, ClipperSafetyOffset); }
