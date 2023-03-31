@@ -1,25 +1,24 @@
-# Pleccer
+# SuperPleccer
 
 **A slicer focused on supporting multicolor 3D printing based on SuperSlicer**
 
-### **Final version will be released in April 2023 together with the stable version, please be advised the source code is not on this repo but on the new repo at [Pleccer](https://github.com/pleccer/Pleccer)** ###
+### ** This repo contains ongoing work on SuperPleccer, which will be developed in tandem with the main PrusaSlicer-based slicer. For the more cutting edge development, take a look at [that](https://github.com/pleccer/Pleccer)** ###
 
-Pleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing colorr 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
+SuperPleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing colorr 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
 
-Prebuilt Windows, Linux and macOS 64-bit releases are available through the [git releases page](https://github.com/rvmn/Pleccer/releases).  
-Nightly builds are available through the [git actions page](https://github.com/rvmn/Pleccer/actions). Click on the build for your platform and then on the archive name (`nightly_win64` or `SuperSlicer-gtk2.AppImage` or `nightly_macos.dmg`) in the "Artifacts" section in the top right corner.
+Prebuilt Windows, Linux and macOS 64-bit releases are available through the [git actions page](https://github.com/rvmn/SuperPleccer/actions). Click on the build for your platform and then on the archive name (`nightly_win64` or `SuperPleccer-gtk2.AppImage` or `nightly_macos.dmg`) in the "Artifacts" section in the top right corner.
 
-Pleccer takes 3D models (STL, OBJ, AMF) and converts them into G-code
+SuperPleccer takes 3D models (STL, OBJ, AMF) and converts them into G-code
 instructions for FFF printers or PNG layers for mSLA 3D printers. It's compatible with any modern printer based on the RepRap toolchain which is running a firmware based on Marlin, Prusa, Klipper, etc.
 
-Pleccer is based on [SuperSlicer](https://github.com/supermerill/SuperSlicer) by supermerill.
+SuperPleccer is based on [SuperSlicer](https://github.com/supermerill/SuperSlicer) by supermerill.
 SuperSlicer is based on [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) by Prusa Research.
 PrusaSlicer is based on [Slic3r](https://github.com/Slic3r/Slic3r) by Alessandro Ranellucci and the RepRap community.
 
-See the [wiki](https://github.com/rvmn/Pleccer/wiki) and
+See the [wiki](https://github.com/rvmn/SuperPleccer/wiki) and
 the [documentation directory](doc/) for information about compilation.
 
-### What are Pleccer main features?
+### What are SuperPleccer main features?
 
 * Improved color picker (thanks to [colorgrab](https://github.com/nielssp/colorgrab))
 * Mixing color calibration setting (requires a diy/professional color measurer)
@@ -30,11 +29,11 @@ the [documentation directory](doc/) for information about compilation.
 * Includes Arachne perimeter generator for adaptive perimeter widths
 * It has also all the current SuperSlicer features.
 
-### Complete changelog [here](https://github.com/rvmn/Pleccer/wiki)
+### Complete changelog [here](https://github.com/rvmn/SuperPleccer/wiki)
 
 See the wiki for examples.
 
-### What are Pleccer / SuperSlicer / PrusaSlicer / Slic3r's main features?
+### What are SuperPleccer / SuperSlicer / PrusaSlicer / Slic3r's main features?
 
 Key features are:
 
@@ -92,8 +91,8 @@ Before sending patches and pull requests contact me (preferably through opening 
 changes. This way we can ensure that nobody wastes their time and no conflicts arise in development.
 
 ## License and attribution
-Pleccer is licensed under the _GNU Affero General Public License, version 3_.
-Pleccer is based on SuperSlicer by supermerill.
+SuperPleccer is licensed under the _GNU Affero General Public License, version 3_.
+SuperPleccer is based on SuperSlicer by supermerill.
 
 SuperSlicer is licensed under the _GNU Affero General Public License, version 3_.
 SuperSlicer is based on PrusaSlicer by PrusaResearch.
