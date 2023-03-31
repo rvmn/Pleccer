@@ -16,32 +16,11 @@ jobs:
         ref: 'rc'
     - name: build deps & slicer
       run: ./BuildMacOS.sh -i
-    - name: Codesign executable conf
-      env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_P12 }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_PASSWD }}
-      run: |
-        echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-        security create-keychain -p temp_password build.keychain
-        security default-keychain -s build.keychain
-        security unlock-keychain -p temp_password build.keychain
-        security import certificate.p12 -k build.keychain -P $MACOS_CERTIFICATE_PWD -T /usr/bin/codesign
-    - name: verify certificate presence
-      run: security find-identity -v
-    - name: register codesign
-      run: |
-        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temp_password build.keychain
-    - name: run codesign on app
-      run: |
-        /usr/bin/codesign --force -s "Developer ID Application: Remi Durand (LDTLFRHP3G)" ./build/pack/SuperSlicer/SuperSlicer.app -v
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_macos.app
         path: build/pack/SuperSlicer/SuperSlicer.app
-    - name: run codesign on dmg
-      run: |
-        /usr/bin/codesign --force -s "Developer ID Application: Remi Durand (LDTLFRHP3G)" ./build/SuperSlicer.dmg -v
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
