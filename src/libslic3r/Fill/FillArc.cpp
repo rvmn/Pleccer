@@ -35,7 +35,7 @@ void FillArc::_fill_surface_single(
             Point(this->_line_spacing, this->_line_spacing),
             direction.second.rotated(-direction.first)));
     }*/
-    coord_t min_spacing = scale_(this->get_spacing());
+    coord_t min_spacing = scale_(this->get_spacing())*.5;
     coord_t distance = coord_t(min_spacing / params.density);
     //int bridge_sign = (int)std::floor((direction.first-.5*M_PI) / (M_PI * 2) * 3);
     /*if(bridge_sign <2 ) 
