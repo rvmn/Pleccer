@@ -41,7 +41,7 @@ public:
 		// Some undecided type yet. It will turn into sltBase first, then it may turn into sltBottomInterface or sltTopInterface.
 		sltIntermediate,
 	};
-
+	int material_interface_layers;
 	// A support layer type used internally by the SupportMaterial class. This class carries a much more detailed
 	// information about the support layer than the layers stored in the PrintObject, mainly
 	// the MyLayer is aware of the bridging flow and the interface gaps between the object and the support.
@@ -126,6 +126,8 @@ public:
 		Flow 		first_layer_flow;
 		Flow 		support_material_flow;
 		Flow 		support_material_interface_flow;
+		Flow 		raft_flow;
+		Flow 		raft_interface_flow;
 		Flow 		support_material_bottom_interface_flow;
 		float 		raft_bridge_flow_ratio;
 		// Is merging of regions allowed? Could the interface & base support regions be printed with the same extruder?
@@ -136,8 +138,10 @@ public:
 
 		coordf_t	gap_xy;
 
-	    float    				base_angle;
+		float    				base_angle;
+		coordf_t 				base_angle_height;
 	    float    				interface_angle;
+		float    				interface_angle_incr;
 	    coordf_t 				interface_spacing;
 	    coordf_t 				interface_density;
 	    coordf_t 				support_spacing;

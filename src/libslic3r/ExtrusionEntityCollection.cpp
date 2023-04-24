@@ -19,14 +19,15 @@ void filter_by_extrusion_role_in_place(ExtrusionEntitiesPtr &extrusion_entities,
 }
 
 ExtrusionEntityCollection::ExtrusionEntityCollection(const ExtrusionPaths &paths)
-    : no_sort(false)
+    : m_no_sort(false), ExtrusionEntity(true)
 {
     this->append(paths);
 }
 
 ExtrusionEntityCollection& ExtrusionEntityCollection::operator= (const ExtrusionEntityCollection &other)
 {
-    this->no_sort = other.no_sort;
+    this->m_no_sort = other.m_no_sort;
+    this->m_can_reverse = other.m_can_reverse;
     clear();
     this->append(other.m_entities);
     return *this;
@@ -35,7 +36,8 @@ ExtrusionEntityCollection& ExtrusionEntityCollection::operator= (const Extrusion
 void ExtrusionEntityCollection::swap(ExtrusionEntityCollection &c)
 {
     std::swap(this->m_entities, c.m_entities);
-    std::swap(this->no_sort, c.no_sort);
+    std::swap(this->m_no_sort, c.m_no_sort);
+    std::swap(this->m_can_reverse, c.m_can_reverse);
 }
 
 void ExtrusionEntityCollection::clear()

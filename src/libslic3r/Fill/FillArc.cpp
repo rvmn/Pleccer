@@ -175,13 +175,13 @@ void FillArc::_fill_surface_single(
               [center_x,center_y](const auto &i1, const auto &i2) {
 		  return i1.distance_from_edges(Point(center_x,center_y)) < i2.distance_from_edges(Point(center_x,center_y));
               });
-	Polylines chained;
-        Point ptc(center_x,center_y);
+	    //Polylines chained;
+        //Point ptc(center_x,center_y);
         //if (params.dont_connect() || params.density > 0.5 || polylines.size() <= 1)
-                chained = chain_polylines(std::move(polylines),&ptc);
+         //       chained = chain_polylines(std::move(polylines),&ptc);
         //else
         //  connect_infill(std::move(polylines), expolygon, chained, min_spacing, params);
-        append(polylines_out, std::move(polylines.size()==chained.size()?chained:polylines));
+        append(polylines_out, std::move(polylines));//.size()==chained.size()?chained:polylines));
         // clip the line using the contours
         /*clipper.AddPaths(lines, ClipperLib::ptSubject, false);
         clipper.Execute(ClipperLib::ctIntersection, polytree1);

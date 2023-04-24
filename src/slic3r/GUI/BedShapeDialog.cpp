@@ -9,6 +9,7 @@
 #include <wx/tooltip.h>
 
 #include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/Utils.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/Polygon.hpp"
 
@@ -299,16 +300,20 @@ wxPanel* BedShapePanel::init_texture_panel()
         sizer->Add(remove_sizer, 1, wxEXPAND | wxTOP, 2);
 
         load_btn->Bind(wxEVT_BUTTON, ([this](wxCommandEvent& e) { load_texture(); }));
+        load_btn->SetToolTip(_L("Load a png/svg file to be used as a texture. "
+            "\nIf it can be found via the executable, configuration or user directory then a relative path will be kept instead of the full one."));
+
         remove_btn->Bind(wxEVT_BUTTON, ([this](wxCommandEvent& e) {
                 m_custom_texture = NONE;
                 update_shape();
             }));
 
         filename_lbl->Bind(wxEVT_UPDATE_UI, ([this](wxUpdateUIEvent& e) {
+                boost::filesystem::path absolute_texture_path = Slic3r::find_full_path(m_custom_texture);
                 e.SetText(_(boost::filesystem::path(m_custom_texture).filename().string()));
                 wxStaticText* lbl = dynamic_cast<wxStaticText*>(e.GetEventObject());
                 if (lbl != nullptr) {
-                    bool exists = (m_custom_texture == NONE) || boost::filesystem::exists(m_custom_texture);
+                    bool exists = (m_custom_texture == NONE) || !absolute_texture_path.empty();
                     lbl->SetForegroundColour(exists ? wxGetApp().get_label_clr_default() : wxColor(*wxRED));
 
                     wxString tooltip_text = "";
@@ -316,7 +321,11 @@ wxPanel* BedShapePanel::init_texture_panel()
                         if (!exists)
                             tooltip_text += _L("Not found:") + " ";
 
-                        tooltip_text += _(m_custom_texture);
+                        if (absolute_texture_path == m_custom_texture || absolute_texture_path.empty()) {
+                            tooltip_text += _(m_custom_texture);
+                        } else {
+                            tooltip_text += _(m_custom_texture + "\n (" + absolute_texture_path.generic_string() + ")");
+                        }
                     }
 
                     wxToolTip* tooltip = lbl->GetToolTip();
@@ -369,6 +378,8 @@ wxPanel* BedShapePanel::init_model_panel()
         sizer->Add(remove_sizer, 1, wxEXPAND | wxTOP, 2);
 
         load_btn->Bind(wxEVT_BUTTON, ([this](wxCommandEvent& e) { load_model(); }));
+        load_btn->SetToolTip(_L("Load a stl file to be used as a model. "
+            "\nIf it can be found via the executable, configuration or user directory then a relative path will be kept instead of the full one."));
 
         remove_btn->Bind(wxEVT_BUTTON, ([this](wxCommandEvent& e) {
                 m_custom_model = NONE;
@@ -376,10 +387,11 @@ wxPanel* BedShapePanel::init_model_panel()
             }));
 
         filename_lbl->Bind(wxEVT_UPDATE_UI, ([this](wxUpdateUIEvent& e) {
+                boost::filesystem::path absolute_model_path = Slic3r::find_full_path(m_custom_model);
                 e.SetText(_(boost::filesystem::path(m_custom_model).filename().string()));
                 wxStaticText* lbl = dynamic_cast<wxStaticText*>(e.GetEventObject());
                 if (lbl != nullptr) {
-                    bool exists = (m_custom_model == NONE) || boost::filesystem::exists(m_custom_model);
+                    bool exists = (m_custom_model == NONE) || !absolute_model_path.empty();
                     lbl->SetForegroundColour(exists ? wxGetApp().get_label_clr_default() : wxColor(*wxRED));
 
                     wxString tooltip_text = "";
@@ -387,7 +399,11 @@ wxPanel* BedShapePanel::init_model_panel()
                         if (!exists)
                             tooltip_text += _L("Not found:") + " ";
 
-                        tooltip_text += _(m_custom_model);
+                        if (absolute_model_path == m_custom_texture || absolute_model_path.empty()) {
+                            tooltip_text += _(m_custom_model);
+                        } else {
+                            tooltip_text += _(m_custom_model + "\n (" + absolute_model_path.generic_string() + ")");
+                        }
                     }
 
                     wxToolTip* tooltip = lbl->GetToolTip();
@@ -565,6 +581,10 @@ void BedShapePanel::load_texture()
 
     wxBusyCursor wait;
 
+    //remove unnecessary parts
+    if (!file_name.empty()) {
+        file_name = Slic3r::shorten_path(file_name).generic_string();
+    }
     m_custom_texture = file_name;
     update_shape();
 }
@@ -587,6 +607,10 @@ void BedShapePanel::load_model()
 
     wxBusyCursor wait;
 
+    //remove unnecessary parts
+    if (!file_name.empty()) {
+        file_name = Slic3r::shorten_path(file_name).generic_string();
+    }
     m_custom_model = file_name;
     update_shape();
 }

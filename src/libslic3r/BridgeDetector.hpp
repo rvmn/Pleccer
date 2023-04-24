@@ -37,7 +37,7 @@ public:
     double                       resolution;
     // The final optimal angle.
     double                       angle;
-    
+    double                      minlen;
     BridgeDetector(ExPolygon _expolygon, const ExPolygons &_lower_slices, coord_t _extrusion_width);
     BridgeDetector(const ExPolygons &_expolygons, const ExPolygons &_lower_slices, coord_t _extrusion_width);
     // If bridge_direction_override != 0, then the angle is used instead of auto-detect.

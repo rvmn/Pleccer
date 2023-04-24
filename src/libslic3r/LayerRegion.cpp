@@ -26,6 +26,21 @@ Flow LayerRegion::flow(FlowRole role, double layer_height) const
     return m_region->flow(*m_layer->object(), role, layer_height, m_layer->id() == 0);
 }
 
+// Average diameter of nozzles participating on extruding this region.
+coordf_t LayerRegion::bridging_height_avg() const
+{
+    const PrintRegionConfig& region_config = this->region().config();
+    if (region_config.bridge_type == BridgeType::btFromNozzle) {
+        const PrintConfig& print_config = this->layer()->object()->print()->config();
+        return region().nozzle_dmr_avg(print_config) * sqrt(region_config.bridge_flow_ratio.get_abs_value(1));
+    } else if (region_config.bridge_type == BridgeType::btFromHeight) {
+        return this->layer()->height;
+    } else if (region_config.bridge_type == BridgeType::btFromFlow) {
+        return this->bridging_flow(FlowRole::frInfill).height();
+    }
+    throw Slic3r::InvalidArgument("Unknown BridgeType");
+}
+
 Flow LayerRegion::bridging_flow(FlowRole role) const
 {
     const PrintRegion       &region         = this->region();
@@ -116,7 +131,8 @@ void LayerRegion::make_perimeters(const SurfaceCollection &slices, SurfaceCollec
     g.ext_perimeter_flow    = this->flow(frExternalPerimeter);
     g.overhang_flow         = this->bridging_flow(frPerimeter);
     g.solid_infill_flow     = this->flow(frSolidInfill);
-    
+    g.use_arachne = (this->layer()->object()->config().perimeter_generator.value == PerimeterGeneratorType::Arachne);
+
     g.process();
 
     this->fill_no_overlap_expolygons = g.fill_no_overlap;
@@ -380,20 +396,26 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                     printf("Processing bridge at layer %zu:\n", this->layer()->id());
                     #endif
                     double custom_angle = Geometry::deg2rad(this->region().config().bridge_angle.value);
-                    if (custom_angle > 0) {
-                        // Bridge was not detected (likely it is only supported at one side). Still it is a surface filled in
-                        // using a bridging flow, therefore it makes sense to respect the custom bridging direction.
-                        bridges[idx_last].bridge_angle = custom_angle;
-                    }else if (bd.detect_angle(custom_angle, &this->region().config())) {
+                    if (bd.detect_angle(custom_angle, &this->region().config())) {
                         bridges[idx_last].bridge_angle = bd.angle;
                         if (this->layer()->object()->has_support()) {
-                            //polygons_append(this->bridged, intersection(bd.coverage(), to_polygons(initial)));
-                            append(this->unsupported_bridge_edges, bd.unsupported_edges());
+                            //polygons_append(this->bridged, bd.coverage());
+                            append(unsupported_bridge_edges, bd.unsupported_edges());
                         }
-                    } else {
-                        bridges[idx_last].bridge_angle = 0;
                     }
-		    if(!bd._pedestal.empty()) bridges[idx_last].pedestal = (Polyline)bd._pedestal;
+                    if(!bd._pedestal.empty()) bridges[idx_last].pedestal = (Polyline)bd._pedestal;
+                    if(bd.has_overhang_holes){
+                                this->has_overhang_holes = true;
+                                this->is_overhang = true;
+                                bridges[idx_last].has_overhang_holes = true;
+                                bridges[idx_last].is_overhang = true;
+                    }else if(bd.is_bridge){
+                        this->is_bridge = true;
+                        bridges[idx_last].bridge_angle += (this->region().config().bridge_fill_pattern.value != ipArc?Geometry::deg2rad(90.):0.) + custom_angle;
+                    }else{
+                        bridges[idx_last].is_overhang = true;
+                        this->is_overhang = true;
+                    }
                     // without safety offset, artifacts are generated (GH #2494)
                     surfaces_append(bottom, union_safety_offset_ex(grown), bridges[idx_last]);
                 }
@@ -482,10 +504,15 @@ void LayerRegion::prepare_fill_surfaces()
     bool spiral_vase = this->layer()->object()->print()->config().spiral_vase;
 
     // if no solid layers are requested, turn top/bottom surfaces to internal
+    // For Lightning infill, infill_only_where_needed is ignored because both
+    // do a similar thing, and their combination doesn't make much sense.
     if (! spiral_vase && this->region().config().top_solid_layers == 0) {
         for (Surfaces::iterator surface = this->fill_surfaces.surfaces.begin(); surface != this->fill_surfaces.surfaces.end(); ++surface)
             if (surface->has_pos_top())
-                surface->surface_type = (this->layer()->object()->config().infill_only_where_needed && !this->region().config().infill_dense.value) ?
+                surface->surface_type = (
+                        this->layer()->object()->config().infill_only_where_needed 
+                        && !this->region().config().infill_dense.value
+                        && this->region().config().fill_pattern != ipLightning) ?
                     stPosInternal | stDensVoid : stPosInternal | stDensSparse;
     }
     if (this->region().config().bottom_solid_layers == 0) {
@@ -590,6 +617,23 @@ void LayerRegion::export_region_fill_surfaces_to_svg_debug(const char *name) con
     static std::map<std::string, size_t> idx_map;
     size_t &idx = idx_map[name];
     this->export_region_fill_surfaces_to_svg(debug_out_path("LayerRegion-fill_surfaces-%s-%d.svg", name, idx ++).c_str());
+}
+
+void LayerRegion::simplify_extrusion_entity()
+{
+
+    const PrintConfig& print_config = this->layer()->object()->print()->config();
+    const bool spiral_mode = print_config.spiral_vase;
+    const bool enable_arc_fitting = print_config.arc_fitting && !spiral_mode;
+    coordf_t scaled_resolution = scale_d(print_config.resolution.value);
+    if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting ? SCALED_EPSILON * 2 : SCALED_EPSILON;
+
+    //call simplify for all paths
+    SimplifyVisitor visitor{ scaled_resolution , enable_arc_fitting, &print_config.arc_fitting_tolerance };
+    this->perimeters.visit(visitor);
+    this->fills.visit(visitor);
+    this->ironings.visit(visitor);
+    this->milling.visit(visitor);
 }
 
 }

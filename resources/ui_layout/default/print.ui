@@ -41,6 +41,7 @@ group:Quality
 		setting:label$_:avoid_crossing_perimeters
 		setting:label_width$12:label$Not on first layer:avoid_crossing_not_first_layer
 		setting:sidetext_width$15:avoid_crossing_perimeters_max_detour
+		setting:sidetext_width$15:avoid_crossing_perimeters_max_detour
 	end_line
 	line:Overlapping external perimeter
 		setting:label$_:thin_perimeters
@@ -58,22 +59,37 @@ group:label_width$12:Overhangs
 		setting:label$Bridge speed and fan:width$5:sidetext_width$0:overhangs_width_speed
 		setting:label_width$12:label$Bridge flow:width$5:overhangs_width
 	end_line
+	setting:overhangs_speed_enforce
 	line:Extrusion direction
 		setting:sidetext_width$2:overhangs_reverse
 		setting:label_width$12:width$5:overhangs_reverse_threshold
 	end_line
-group:Advanced
+group:sidetext_width$5:Advanced
 	setting:width$25:no_perimeter_unsupported_algo
 	line:Gap Fill
 		setting:label$_:gap_fill_enabled
-		setting:width$5:gap_fill_min_area
 		setting:width$5:gap_fill_last
+		setting:width$5:gap_fill_extension
+	end_line
+	line:Gap Fill threshold
+		setting:width$5:gap_fill_min_width
+		setting:width$5:gap_fill_max_width
+		setting:width$5:sidetext_width$6:gap_fill_min_area
+		setting:width$5:gap_fill_min_length
 	end_line
 	line:Seam
+		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:script:enum$corners$Corners$nearest$Nearest$random$Scattered$allrandom$Random$aligned$Aligned$contiguous$Contiguous$rear$Rear$custom$Custom:depends$seam_position$seam_angle_cost$seam_travel_cost:label$Seam position:label_width$12:sidetext_width$0:tooltip$Position of perimeters' starting points. May use the angle & travel cost (with the fixed visilibity & ovehangs cost) to find the best place.\nCorners\. at least 100% angle cost and no more than 80% travel cost (default to 120-40).\nNearest\. no more than 100% angle cost and at least 100% travel cost (default to 80-100).\nScattered\. seam is placed at a random position on external perimeters.\nRandom\. seam is placed at a random position for all perimeters.\nAligned\. seams are grouped in the best place possible (minimum 6 layers per group).\nContiguous\. seam is placed over a seam from the previous layer (useful with enforcers as seeds).\nRear\. seam is placed at the far side (highest Y coordinates).\nCustom\. Other conbination of angle & travel cost than 'Corners' and 'Nearest', (default to 60-100).\nCustom & weight can be defined in Advanced or Expert mode.:s_seam_position:s_seam_position
 		setting:tags$Simple$Advanced$Expert$Prusa$SuSi:script:enum$corners$Corners$nearest$Nearest$random$Scattered$allrandom$Random$aligned$Aligned$contiguous$Contiguous$rear$Rear$custom$Custom:depends$seam_position$seam_angle_cost$seam_travel_cost:label$Seam position:label_width$12:sidetext_width$0:tooltip$Position of perimeters' starting points.\nCustom can be defined in Advanced or Expert mode. Cost-based settings let you choose the angle and travel cost. A high angle cost will place the seam where it can be hidden by a corner, the travel cost place the seam near the last position (often at the end of the previous infill).:s_seam_position
 #		setting:tags$Expert:label_width$12:sidetext_width$0:seam_position
 		setting:tags$Advanced$Expert$SuSi:width$3:sidetext_width$0:seam_angle_cost
 		setting:tags$Advanced$Expert$SuSi:width$3:sidetext_width$0:seam_travel_cost
+		setting:tags$Expert$SuSi:sidetext_width$0:seam_visibility
+	end_line
+	line:Seam notch
+		setting:seam_notch_inner
+		setting:seam_notch_outer
+		setting:seam_notch_all
+		setting:seam_notch_angle
 	end_line
 	line:One-loop perimeters
 		setting:sidetext_width$0:label$_:perimeter_loop
@@ -83,7 +99,7 @@ group:Advanced
 	line:Fuzzy skin (experimental)
 		setting:sidetext_width$1:label$_:fuzzy_skin
 		setting:width$6:sidetext_width$6:fuzzy_skin_thickness
-		setting:width$6:sidetext_width$5:fuzzy_skin_point_dist
+		setting:width$6:fuzzy_skin_point_dist
 	end_line
 group:External perimeter first
 	setting:label$Activate:external_perimeters_first
@@ -93,6 +109,18 @@ group:External perimeter first
 	end_line
 	setting:external_perimeters_vase
 	setting:perimeter_bonding
+group:Arachne perimeter generator (variable width)
+	setting:perimeter_generator
+	line:Wall Transition
+		setting:label$Angle:wall_transition_angle
+		setting:label$Distance Margin:wall_transition_filter_deviation
+		setting:label$Length:wall_transition_length
+	end_line
+	setting:wall_distribution_count
+	line:Min feature
+		setting:min_bead_width
+		setting:min_feature_size
+	end_line
 
 page:Slicing:layers
 group:Layer height
@@ -126,6 +154,7 @@ group:Modifying slices
 	line:Convert round vertical holes to polyholes
 		setting:label$_:hole_to_polyhole
 		setting:sidetext_width$5:hole_to_polyhole_threshold
+		setting:sidetext_width$5:hole_to_polyhole_threshold
 		setting:hole_to_polyhole_twisted
 	end_line
 group:Other
@@ -156,10 +185,14 @@ group:title_width$0:Infill
 		setting:label_left:label_width$20:label$Bottom:bottom_fill_pattern
 		setting:label$_:width$18:infill_connection_bottom
 	end_line
-        line:_
-                setting:label_left:label_width$20:label$Bridge:bridge_fill_pattern
-                setting:label$_:width$18:infill_connection_bridge
-        end_line
+	line:_
+		setting:label_left:label_width$20:label$Bridge:bridge_fill_pattern
+		setting:label$_:width$18:infill_connection_bridge
+	end_line
+	line:_
+		setting:label_left:label_width$20:label$Overhang:overhang_fill_pattern
+		setting:label$_:width$18:infill_connection_overhang
+	end_line
 group:Reducing printing time
 	setting:infill_every_layers
 	setting:infill_only_where_needed
@@ -222,52 +255,74 @@ group:Brim
 		setting:brim_ears_pattern
 	end_line
 	setting:brim_separation
+	setting:brim_per_object
 
 page:Support material:support
 
 group:Support material
 	setting:tags$Advanced$Expert$Prusa:support_material
+	setting:tags$Advanced$Expert$Prusa:minimal_support
 	setting:tags$Advanced$Expert$Prusa:support_material_auto
 	setting:support_material_threshold
 	setting:support_material_enforce_layers
+group:Overhangs
+	line:Overhang limit
+		setting:label$Max distance:overhang_distance
+	end_line
+	setting:label$Overhang infill first:overhang_infill_first
 group:Raft
-	setting:raft_layers
+	line:Layers
+		setting:label$Count:raft_layers
+		setting:label$Layer height:raft_layer_height
+		setting:label$Interface layer height:raft_interface_layer_height
+	end_line
 	line:First layer
 		setting:raft_first_layer_density
 		setting:raft_first_layer_expansion
 	end_line
-	line:advanced
+	line:Advanced
 		setting:raft_contact_distance
 		setting:raft_expansion
 	end_line
 group:Options for support material and raft
 	setting:support_material_style
+	setting:support_material_layer_height
 	line:Z-offset
 		setting:width$13:support_material_contact_distance_type
 		setting:width$6:support_material_contact_distance
 		setting:width$6:support_material_bottom_contact_distance
 	end_line
-	setting:support_material_pattern
+	line:Pattern
+		setting:label$_:support_material_pattern
+		setting:label$Spacing:support_material_spacing
+		setting:label$Angle:support_material_angle
+	end_line
 	setting:support_material_with_sheath
-	setting:support_material_spacing
-	setting:support_material_angle
 	setting:support_material_closing_radius
 	setting:tags$Advanced$Expert$Prusa:support_material_buildplate_only
 	setting:sidetext_width$7:support_material_xy_spacing
 	setting:dont_support_bridges
 	setting:support_material_synchronize_layers
 group:Options for support material interface
-	setting:support_material_interface_pattern
+	setting:support_material_interface_layer_height
+	line:Pattern
+		setting:support_material_interface_pattern
+		setting:label$Interface spacing:support_material_interface_spacing
+	end_line
+	line:Pattern Angle
+		setting:label$_:support_material_interface_angle
+		setting:label$Increment:support_material_interface_angle_increment
+	end_line
 	line:Layer count
 		setting:support_material_interface_layers
 		setting:support_material_bottom_interface_layers
 	end_line
-	setting:support_material_interface_spacing
 	setting:support_material_interface_contact_loops
 
 page:Speed:time
 group:label_width$8:sidetext_width$7:Speed for print moves
 	line:Default speed
+		setting:width$4:sidetext_width$15:default_speed
 		setting:width$4:sidetext_width$15:default_speed
 	line:Perimeter speed
 		setting:width$4:perimeter_speed
@@ -283,6 +338,7 @@ group:label_width$8:sidetext_width$7:Speed for print moves
 	line:Bridge speed
 		setting:width$4:bridge_speed
 		setting:width$4:bridge_speed_internal
+	line:Overhang speed
 		setting:width$4:overhangs_speed
 	line:Gap fill speed
 		setting:width$4:label$maximum speed:gap_fill_speed
@@ -310,6 +366,9 @@ group:sidetext_width$7:Modifiers
 group:Autospeed (advanced)
 	setting:max_volumetric_speed
 	setting:max_print_speed
+group:Pressure equalizer (experimental)
+	setting:max_volumetric_extrusion_rate_slope_positive
+	setting:max_volumetric_extrusion_rate_slope_negative
 group:label_width$9:sidetext_width$8:Acceleration control (advanced)
 	line:Default acceleration
 		setting:width$4:default_acceleration
@@ -433,7 +492,6 @@ group:Plater
 group:Sequential printing
 	setting:tags$Advanced$Expert$Prusa:complete_objects
 	setting:complete_objects_one_skirt
-	setting:complete_objects_one_brim
 	setting:complete_objects_sort
 	line:Extruder clearance (mm)
 		setting:width$6:extruder_clearance_radius

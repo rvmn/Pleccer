@@ -24,7 +24,6 @@
 
 namespace Slic3r {
 
-
 class AppConfig
 {
 public:
@@ -40,6 +39,10 @@ public:
 		Highlight,
 	};
 
+	struct ConfigFileInfo {
+		bool correct_checksum{ false };
+		bool contains_null{ false };
+	};
 
 	typedef struct {
 		double r;       // a fraction between 0 and 1
@@ -243,7 +246,7 @@ public:
 
 #ifdef WIN32
 	static std::string appconfig_md5_hash_line(const std::string_view data);
-	static bool verify_config_file_checksum(boost::nowide::ifstream& ifs);
+	static ConfigFileInfo check_config_file_and_verify_checksum(boost::nowide::ifstream& ifs);
 #endif
 private:
 	template<typename T>

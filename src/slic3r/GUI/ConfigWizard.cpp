@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <numeric>
 #include <utility>
-#include <boost/unordered_map.hpp>
 #include <stdexcept>
 #include <boost/format.hpp>
 #include <boost/log/trivial.hpp>
@@ -57,13 +56,11 @@
 namespace Slic3r {
 namespace GUI {
 
-#define MAIN_VENDOR "None"
-
 using Config::Snapshot;
 using Config::SnapshotDB;
 
 
-static const boost::unordered_map<PrinterTechnology, std::string> tech_to_string{ {
+static const std::unordered_map<PrinterTechnology, std::string> tech_to_string{ {
     { PrinterTechnology::ptFFF, "FFF" },
     { PrinterTechnology::ptSLA, "SLA" },
     { PrinterTechnology::ptSLS, "SLS" },
@@ -1519,7 +1516,7 @@ PageDiameters::PageDiameters(ConfigWizard *parent)
     auto *unit_filam = new wxStaticText(this, wxID_ANY, _L("mm"));
     sizer_filam->AddGrowableCol(0, 1);
     sizer_filam->Add(text_filam, 0, wxALIGN_CENTRE_VERTICAL);
-    sizer_filam->Add(diam_filam);
+    sizer_filam->Add(diam_filam, 0, wxALIGN_CENTRE_VERTICAL);
     sizer_filam->Add(unit_filam, 0, wxALIGN_CENTRE_VERTICAL);
     append(sizer_filam);
 }

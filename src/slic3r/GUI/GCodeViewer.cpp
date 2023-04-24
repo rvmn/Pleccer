@@ -604,7 +604,8 @@ GCodeViewer::GCodeViewer()
         this->Extrusion_Role_Colors[ExtrusionRole::erSolidInfill]       = { 0.59f, 0.33f, 0.80f, 1.f };
         this->Extrusion_Role_Colors[ExtrusionRole::erTopSolidInfill]    = { 0.94f, 0.25f, 0.25f, 1.f };
         this->Extrusion_Role_Colors[ExtrusionRole::erIroning]           = { 1.00f, 0.55f, 0.41f, 1.f };
-        this->Extrusion_Role_Colors[ExtrusionRole::erBridgeInfill]      = { 0.30f, 0.50f, 0.73f, 1.f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erBridgeInfill]      = { 0.90f, 0.40f, 0.60f, 1.0f };
+        this->Extrusion_Role_Colors[ExtrusionRole::erOverhangInfill]    = { 0.30f, 0.50f, 0.73f, 1.f };
         this->Extrusion_Role_Colors[ExtrusionRole::erThinWall]          = { 0.00f, 1.00f, 0.40f, 1.f };
         this->Extrusion_Role_Colors[ExtrusionRole::erGapFill]           = { 1.00f, 1.00f, 1.00f, 1.f };
         this->Extrusion_Role_Colors[ExtrusionRole::erSkirt]             = { 0.00f, 0.53f, 0.43f, 1.f };
@@ -3619,9 +3620,8 @@ void GCodeViewer::render_legend(float& legend_height)
             PartialTimes items;
 
             std::vector<CustomGCode::Item> custom_gcode_per_print_z = wxGetApp().is_editor() ? wxGetApp().plater()->model().custom_gcode_per_print_z.gcodes : m_custom_gcode_per_print_z;
-            int extruders_count = wxGetApp().extruders_edited_cnt();
-            std::vector<Color> last_color(extruders_count);
-            for (int i = 0; i < extruders_count; ++i) {
+            std::vector<Color> last_color(m_extruders_count);
+            for (size_t i = 0; i < m_extruders_count; ++i) {
                 last_color[i] = m_tool_colors[i];
             }
             int last_extruder_id = 1;

@@ -21,6 +21,7 @@
 #include "../ExtrusionEntity.hpp"
 #include "../ExtrusionEntityCollection.hpp"
 #include "../Flow.hpp"
+#include "../PrintConfig.hpp"
 
 namespace Slic3r {
 
@@ -81,7 +82,7 @@ struct FillParams
     ExtrusionRole role      { erNone };
 
     // flow to use
-    Flow        flow        = Flow(0.f, 0.f, 0.f, 1.f); // width,  height,  nozzle_diameter, spacing_ratio
+    Flow        flow        {};
 
     // to order the fills by priority
     int32_t     priority    = 0;
@@ -91,6 +92,11 @@ struct FillParams
 
     // Zero based extruder ID.
     unsigned int    extruder = 0;
+
+    // For Concentric infill, to switch between Classic and Arachne.
+    bool        use_arachne     { false };
+    // Layer height for Concentric infill with Arachne.
+    coordf_t    layer_height    { 0.f };
 };
 static_assert(IsTriviallyCopyable<FillParams>::value, "FillParams class is not POD (and it should be - see constructor).");
 
@@ -140,6 +146,7 @@ public:
     
     // Perform the fill.
     virtual Polylines fill_surface(const Surface *surface, const FillParams &params) const;
+    virtual ThickPolylines fill_surface_arachne(const Surface *surface, const FillParams &params) const;
 
 protected:
     Fill() :
@@ -158,13 +165,23 @@ protected:
 
     // The expolygon may be modified by the method to avoid a copy.
     virtual void _fill_surface_single(
-        const FillParams                & /* params */, 
+        const FillParams                & /* params */,
         unsigned int                      /* thickness_layers */,
         const std::pair<float, Point>   & /* direction */, 
-	const Polyline            /* pedestal */,
+	    const Polyline            /* pedestal */,
         ExPolygon                         /* expolygon */,
         Polylines                       & /* polylines_out */) const {
         BOOST_LOG_TRIVIAL(error)<<"Error, the fill isn't implemented";
+    };
+
+    // Used for concentric infill to generate ThickPolylines using Arachne.
+    virtual void _fill_surface_single(const FillParams              &params,
+                                      unsigned int                   thickness_layers,
+                                      const std::pair<float, Point> &direction,
+                                      const Polyline                         pedestal,
+                                      ExPolygon                      expolygon,
+                                      ThickPolylines                &thick_polylines_out) const {
+        BOOST_LOG_TRIVIAL(error) << "Error, the arachne fill isn't implemented";
     };
 
     virtual float _layer_angle(size_t idx) const { return (idx & 1) ? float(M_PI/2.) : 0; }
@@ -181,7 +198,7 @@ protected:
     ExtrusionRole getRoleFromSurfaceType(const FillParams &params, const Surface *surface) const {
         if (params.role == erNone || params.role == erCustom) {
             return params.flow.bridge() ?
-                (surface->has_pos_bottom() ? erBridgeInfill : erInternalBridgeInfill) :
+                (surface->has_pos_bottom() ?( surface->is_overhang? erOverhangInfill: erBridgeInfill) : erInternalBridgeInfill) :
                            (surface->has_fill_solid() ?
                            ((surface->has_pos_top()) ? erTopSolidInfill : erSolidInfill) :
                            erInternalInfill);

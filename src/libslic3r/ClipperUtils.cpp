@@ -644,6 +644,8 @@ Slic3r::Polygons intersection(const Slic3r::Surfaces &subject, const Slic3r::ExP
     { return _clipper(ClipperLib::ctIntersection, ClipperUtils::SurfacesProvider(subject), ClipperUtils::ExPolygonsProvider(clip), do_safety_offset); }
 Slic3r::Polygons union_(const Slic3r::Polygons &subject)
     { return _clipper(ClipperLib::ctUnion, ClipperUtils::PolygonsProvider(subject), ClipperUtils::EmptyPathsProvider(), ApplySafetyOffset::No); }
+Slic3r::Polygons union_(const Slic3r::Polygons &subject, const ClipperLib::PolyFillType fillType)
+    { return to_polygons(clipper_do<ClipperLib::Paths>(ClipperLib::ctUnion, ClipperUtils::PolygonsProvider(subject), ClipperUtils::EmptyPathsProvider(), fillType, ApplySafetyOffset::No)); }
 Slic3r::Polygons union_(const Slic3r::ExPolygons &subject)
     { return _clipper(ClipperLib::ctUnion, ClipperUtils::ExPolygonsProvider(subject), ClipperUtils::EmptyPathsProvider(), ApplySafetyOffset::No); }
 Slic3r::Polygons union_(const Slic3r::Polygons &subject, const Slic3r::Polygons &subject2)
@@ -753,7 +755,7 @@ Polylines _clipper_pl_open(ClipperLib::ClipType clipType, PathsProvider1 &&subje
 
     //perform y safing : if a line is on the same Y, clipper may not pick the good point.
     //note: if not enough, next time, add some of the X coordinate (modulo it so it's contained in the scaling part)
-    for (ClipperLib::Paths* input : { &input_subject, &input_clip })
+    for (ClipperLib::Paths* input : { &input_subject, &input_clip }) {
         for (ClipperLib::Path& path : *input) {
             coord_t lasty = 0;
             for (ClipperLib::IntPoint& pt : path) {
@@ -763,6 +765,7 @@ Polylines _clipper_pl_open(ClipperLib::ClipType clipType, PathsProvider1 &&subje
                 lasty = pt.y();
             }
         }
+    }
 
     // init Clipper
     ClipperLib::Clipper clipper;
@@ -806,6 +809,187 @@ Polylines _clipper_pl_open(ClipperLib::ClipType clipType, PathsProvider1 &&subje
 
     return PolyTreeToPolylines(std::move(retval));
 }
+
+void scaleClipperPolygons(ClipperLib_Z::Paths& polygons)
+{
+    CLIPPERUTILS_PROFILE_FUNC();
+    for (ClipperLib_Z::Paths::iterator it = polygons.begin(); it != polygons.end(); ++it)
+        for (ClipperLib_Z::Path::iterator pit = (*it).begin(); pit != (*it).end(); ++pit) {
+            pit->x() <<= CLIPPER_OFFSET_POWER_OF_2;
+            pit->y() <<= CLIPPER_OFFSET_POWER_OF_2;
+            pit->z() <<= CLIPPER_OFFSET_POWER_OF_2;
+        }
+}
+ClipperLib_Z::Paths clip_extrusion(const ClipperLib_Z::Paths& subjects, const ClipperLib_Z::Paths& clip, ClipperLib_Z::ClipType clipType)
+{
+    ClipperLib_Z::Clipper clipper;
+    clipper.ZFillFunction([](const ClipperLib_Z::IntPoint& e1bot, const ClipperLib_Z::IntPoint& e1top, const ClipperLib_Z::IntPoint& e2bot,
+        const ClipperLib_Z::IntPoint& e2top, ClipperLib_Z::IntPoint& pt) {
+            // The clipping contour may be simplified by clipping it with a bounding box of "subject" path.
+            // The clipping function used may produce self intersections outside of the "subject" bounding box. Such self intersections are 
+            // harmless to the result of the clipping operation,
+            // Both ends of each edge belong to the same source: Either they are from subject or from clipping path.
+            assert(e1bot.z() >= 0 && e1top.z() >= 0);
+            assert(e2bot.z() >= 0 && e2top.z() >= 0);
+            assert((e1bot.z() == 0) == (e1top.z() == 0));
+            assert((e2bot.z() == 0) == (e2top.z() == 0));
+
+            // Start & end points of the clipped polyline (extrusion path with a non-zero width).
+            ClipperLib_Z::IntPoint start = e1bot;
+            ClipperLib_Z::IntPoint end = e1top;
+            if (start.z() <= 0 && end.z() <= 0) {
+                start = e2bot;
+                end = e2top;
+            }
+
+            if (start.z() <= 0 && end.z() <= 0) {
+                // Self intersection on the source contour.
+                assert(start.z() == 0 && end.z() == 0);
+                pt.z() = 0;
+            } else {
+                // Interpolate extrusion line width.
+                assert(start.z() > 0 && end.z() > 0);
+
+                double length_sqr = (end - start).cast<double>().squaredNorm();
+                double dist_sqr = (pt - start).cast<double>().squaredNorm();
+                double t = std::sqrt(dist_sqr / length_sqr);
+
+                pt.z() = start.z() + coord_t((end.z() - start.z()) * t);
+            }
+        });
+
+    //TODO: //scale to have some more precision to do some Y-bugfix like in _clipper_pl_open
+
+    // read input
+    ClipperLib_Z::Paths input_subject;
+    for (const ClipperLib_Z::Path& pg : subjects)
+        input_subject.push_back(pg);
+    ClipperLib_Z::Paths input_clip;
+    for (const ClipperLib_Z::Path& pg : clip)
+        input_clip.push_back(pg);
+
+    //scale to have some more precision to do some Y-bugfix
+    scaleClipperPolygons(input_subject);
+    scaleClipperPolygons(input_clip);
+
+    //perform y safing : if a line is on the same Y, clipper may not pick the good point.
+    //note: if not enough, next time, add some of the X coordinate (modulo it so it's contained in the scaling part)
+    for (ClipperLib_Z::Paths* input : { &input_subject, &input_clip }) {
+        for (ClipperLib_Z::Path& path : *input) {
+            coord_t lasty = 0;
+            for (ClipperLib_Z::IntPoint& pt : path) {
+                if (lasty == pt.y()) {
+                    pt.y() += 2048;// well below CLIPPER_OFFSET_POWER_OF_2, need also to be high enough that it won't be reduce to 0 if cut near an end
+                }
+                lasty = pt.y();
+            }
+        }
+    }
+
+    clipper.AddPaths(input_subject, ClipperLib_Z::ptSubject, false);
+    clipper.AddPaths(input_clip, ClipperLib_Z::ptClip, true);
+
+    ClipperLib_Z::PolyTree clipped_polytree;
+    ClipperLib_Z::Paths    clipped_paths;
+    clipper.Execute(clipType, clipped_polytree, ClipperLib_Z::pftNonZero, ClipperLib_Z::pftNonZero);
+
+
+    //restore good y
+    std::vector<ClipperLib_Z::PolyNode*> to_check;
+    to_check.push_back(&clipped_polytree);
+    while (!to_check.empty()) {
+        ClipperLib_Z::PolyNode* node = to_check.back();
+        to_check.pop_back();
+        for (ClipperLib_Z::IntPoint& pit : node->Contour) {
+            pit.x() += CLIPPER_OFFSET_SCALE_ROUNDING_DELTA;
+            pit.y() += CLIPPER_OFFSET_SCALE_ROUNDING_DELTA;
+            pit.z() += CLIPPER_OFFSET_SCALE_ROUNDING_DELTA;
+            pit.x() >>= CLIPPER_OFFSET_POWER_OF_2;
+            pit.y() >>= CLIPPER_OFFSET_POWER_OF_2;
+            pit.z() >>= CLIPPER_OFFSET_POWER_OF_2;
+        }
+        //note: moving in Y may create 0-length segment, so it needs an extra post-processing step to remove these duplicate points.
+        for (size_t idx = 1; idx < node->Contour.size(); ++idx) {
+            ClipperLib_Z::IntPoint& pit = node->Contour[idx];
+            ClipperLib_Z::IntPoint& previous = node->Contour[idx - 1];
+            // unscaling remove too small differences. The equality is enough.
+            if (pit.x() == previous.x() && pit.y() == previous.y()) {
+                node->Contour.erase(node->Contour.begin() + idx);
+                --idx;
+            }
+        }
+        //be sure you don't save 1-point paths
+        if (node->Contour.size() == 1)
+            node->Contour.clear();
+        to_check.insert(to_check.end(), node->Childs.begin(), node->Childs.end());
+    }
+
+    ClipperLib_Z::PolyTreeToPaths(clipped_polytree, clipped_paths);
+
+    //can contain 0-length segments
+    for (ClipperLib_Z::Path& path : clipped_paths) {
+        for (size_t i = 1; i < path.size(); i++) {
+            if ((path[i - 1] - path[i]).squaredNorm() < SCALED_EPSILON) {
+                path.erase(path.begin() + i);
+                i--;
+            }
+        }
+    }
+
+    // Clipped path could contain vertices from the clip with a Z coordinate equal to zero.
+    // For those vertices, we must assign value based on the subject.
+    // This happens only in sporadic cases.
+    for (ClipperLib_Z::Path& path : clipped_paths)
+        for (ClipperLib_Z::IntPoint& c_pt : path)
+            if (c_pt.z() == 0) {
+                const Point pt(c_pt.x(), c_pt.y());
+                Point       projected_pt_min;
+                const ClipperLib_Z::IntPoint* it_a = nullptr;
+                const ClipperLib_Z::IntPoint* it_b = nullptr;
+                auto        dist_sqr_min = std::numeric_limits<double>::max();
+                Point      prev(0, 0);
+                for (const ClipperLib_Z::Path& subject : subjects) {
+                    // Now we must find the corresponding line on with this point is located and compute line width (Z coordinate).
+                    if (subject.size() <= 2)
+                        continue;
+
+                    for (auto it = std::next(subject.begin()); it != subject.end(); ++it) {
+                        Point curr(it->x(), it->y());
+                        if (it_a == nullptr) {
+                            assert(std::prev(it) == subject.begin());
+                            prev = Point(subject.front().x(), subject.front().y());
+                        }
+                        Point projected_pt = pt.projection_onto(Line(prev, curr));
+                        if (double dist_sqr = (projected_pt - pt).cast<double>().squaredNorm(); dist_sqr < dist_sqr_min) {
+                            dist_sqr_min = dist_sqr;
+                            projected_pt_min = projected_pt;
+                            it_a = &*std::prev(it);
+                            it_b = &*it;
+                        }
+                        prev = curr;
+                    }
+
+                    assert(dist_sqr_min <= SCALED_EPSILON);
+                    assert(*it_a != subject.back());
+                }
+
+                const Point  pt_a(it_a->x(), it_a->y());
+                const Point  pt_b(it_b->x(), it_b->y());
+                const double line_len = (pt_b - pt_a).cast<double>().norm();
+                const double dist = (projected_pt_min - pt_a).cast<double>().norm();
+                c_pt.z() = coord_t(double(it_a->z()) + (dist / line_len) * double(it_b->z() - it_a->z()));
+            }
+    assert([&clipped_paths = std::as_const(clipped_paths)]() -> bool {
+        for (const ClipperLib_Z::Path& path : clipped_paths)
+            for (const ClipperLib_Z::IntPoint& pt : path)
+                if (pt.z() <= 0)
+                    return false;
+        return true;
+    }());
+
+    return clipped_paths;
+}
+
 
 // If the split_at_first_point() call above happens to split the polygon inside the clipping area
 // we would get two consecutive polylines instead of a single one, so we go through them in order

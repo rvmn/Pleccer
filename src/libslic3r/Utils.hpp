@@ -81,6 +81,13 @@ extern std::string normalize_utf8_nfc(const char *src);
 extern size_t get_utf8_sequence_length(const std::string& text, size_t pos = 0);
 extern size_t get_utf8_sequence_length(const char *seq, size_t size);
 
+// If the file has a relative path, it tries to find it in the exe directory, the configuration directory and the user directory.
+// If it can't find it, it returns an empty path
+extern boost::filesystem::path find_full_path(const boost::filesystem::path filename, const boost::filesystem::path return_fail = "");
+
+// If the filename is an absolute path, it remove the exe directory path, the configuration directory path or the user directory path to create a relative path.
+extern boost::filesystem::path shorten_path(const boost::filesystem::path filename);
+
 // Safely rename a file even if the target exists.
 // On Windows, the file explorer (or anti-virus or whatever else) often locks the file
 // for a short while, so the file may not be movable. Retry while we see recoverable errors.

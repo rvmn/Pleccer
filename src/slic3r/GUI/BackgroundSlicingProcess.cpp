@@ -20,6 +20,7 @@
 #include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/GCode/PostProcessor.hpp"
+#include "libslic3r/Format/Format.hpp"
 #include "libslic3r/Format/SL1.hpp"
 #include "libslic3r/Thread.hpp"
 #include "libslic3r/libslic3r.h"
@@ -208,7 +209,7 @@ void BackgroundSlicingProcess::process_sla()
                 ThumbnailsParams{current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->values, true, true, true, true});
 
             Zipper zipper(export_path);
-            m_sla_archive.export_print(zipper, *m_sla_print);
+            m_sla_archive->export_print(zipper, *m_sla_print);
                 for (const ThumbnailData& data : thumbnails)
                     if (data.is_valid())
                         write_thumbnail(zipper, data);
@@ -630,6 +631,10 @@ Print::ApplyStatus BackgroundSlicingProcess::apply(const Model &model, const Dyn
 		if (m_gcode_result != nullptr)
 			m_gcode_result->reset();
 	}
+	if (invalidated && m_print->technology() == ptSLA) {
+			m_sla_archive = Slic3r::get_output_format(config);
+			m_sla_print->set_printer(m_sla_archive);
+	}
 	return invalidated;
 }
 
@@ -726,7 +731,9 @@ void BackgroundSlicingProcess::finalize_gcode()
 	// collide with the G-code viewer memory mapping of the unprocessed G-code. G-code viewer maps unprocessed G-code, because m_gcode_result 
 	// is calculated for the unprocessed G-code and it references lines in the memory mapped G-code file by line numbers.
 	// export_path may be changed by the post-processing script as well if the post processing script decides so, see GH #6042.
-	bool post_processed = run_post_process_scripts(output_path, true, "File", export_path, m_fff_print->full_print_config());
+	DynamicPrintConfig conf_for_script = m_fff_print->full_print_config();
+	conf_for_script.apply(m_fff_print->physical_printer_config()); // add physical printer options for use in the script.
+	bool post_processed = run_post_process_scripts(output_path, true, "File", export_path, conf_for_script);
 	auto remove_post_processed_temp_file = [post_processed, &output_path]() {
 		if (post_processed)
 			try {
@@ -801,7 +808,7 @@ void BackgroundSlicingProcess::prepare_upload()
         	ThumbnailsParams{current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->values, true, true, true, true});
 																												 // true, false, true, true); // renders also supports and pad
         Zipper zipper{source_path.string()};
-        m_sla_archive.export_print(zipper, *m_sla_print, m_upload_job.upload_data.upload_path.string());
+        m_sla_archive->export_print(zipper, *m_sla_print, m_upload_job.upload_data.upload_path.string());
             for (const ThumbnailData& data : thumbnails)
                 if (data.is_valid())
                     write_thumbnail(zipper, data);

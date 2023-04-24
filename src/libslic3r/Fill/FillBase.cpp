@@ -60,10 +60,8 @@ Fill* Fill::new_from_type(const InfillPattern type)
     case ipAdaptiveCubic:       return new FillAdaptive::Filler();
     case ipSupportCubic:        return new FillAdaptive::Filler();
     case ipSupportBase:         return new FillSupportBase();
-#if HAS_LIGHTNING_INFILL
     case ipLightning:           return new FillLightning::Filler();
-#endif // HAS_LIGHTNING_INFILL
-    default: throw Slic3r::InvalidArgument("unknown infill type");
+    default: throw Slic3r::InvalidArgument("unknown type");
     }
 }
 
@@ -77,7 +75,7 @@ Fill* Fill::new_from_type(const std::string &type)
 Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) const
 {
     // Perform offset.
-    Slic3r::ExPolygons expp = offset_ex(surface->expolygon, double(scale_(0 - 0.5 * this->get_spacing())));
+    Slic3r::ExPolygons expp = offset_ex(surface->expolygon, scale_d(0 - 0.5 * this->get_spacing()));
     // Create the infills for each of the regions.
     Polylines polylines_out;
     for (size_t i = 0; i < expp.size(); ++ i)
@@ -85,10 +83,21 @@ Polylines Fill::fill_surface(const Surface *surface, const FillParams &params) c
             params,
             surface->thickness_layers,
             _infill_direction(surface),
-	    _infill_pedestal(surface),
+	        _infill_pedestal(surface),
             std::move(expp[i]),
             polylines_out);
     return polylines_out;
+}
+
+ThickPolylines Fill::fill_surface_arachne(const Surface *surface, const FillParams &params) const
+{
+    // Perform offset.
+    Slic3r::ExPolygons expp = offset_ex(surface->expolygon, scale_d(/*this->overlap*/0 - 0.5 * this->get_spacing()));
+    // Create the infills for each of the regions.
+    ThickPolylines thick_polylines_out;
+    for (ExPolygon &expoly : expp)
+        _fill_surface_single(params, surface->thickness_layers, _infill_direction(surface), _infill_pedestal(surface), std::move(expoly), thick_polylines_out);
+    return thick_polylines_out;
 }
 
 // Calculate a new spacing to fill width with possibly integer number of lines,
@@ -189,58 +198,131 @@ double Fill::compute_unscaled_volume_to_fill(const Surface* surface, const FillP
 
 void Fill::fill_surface_extrusion(const Surface *surface, const FillParams &params, ExtrusionEntitiesPtr &out) const {
     //add overlap & call fill_surface
-    Polylines polylines;
     try {
-        polylines = this->fill_surface(surface, params);
+        if (params.use_arachne) {
+            ThickPolylines thick_polylines = this->fill_surface_arachne(surface, params);
+
+            if (thick_polylines.empty())
+                return;
+
+            //get flow
+            Flow used_flow = params.flow;
+            if (params.flow.spacing_ratio() < 1.f && !params.flow.bridge()) {
+                // the spacing is larger than usual. get the flow from the current spacing
+                used_flow = Flow::new_from_spacing(params.flow.spacing(), params.flow.nozzle_diameter(), params.flow.height(), 1, params.flow.bridge());
+            }
+
+            //get role
+            ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
+
+            // to paths
+            ExtrusionEntityCollection* all_new_paths = new ExtrusionEntityCollection();
+            double extruded_volume = 0;
+            for (const ThickPolyline& thick_polyline : thick_polylines) {
+                ExtrusionEntitiesPtr entities = Geometry::thin_variable_width(
+                    { thick_polyline },
+                    good_role,
+                    used_flow,
+                    used_flow.scaled_width() / 8,
+                    true);
+                // compute the path of the nozzle -> extruded volume
+                for (const ExtrusionEntity* entity : entities) {
+                    extruded_volume += entity->total_volume();
+                }
+                //append (move so the pointers are reused, and won't need to be deleted)
+                all_new_paths->append(std::move(entities));
+            }
+            thick_polylines.clear();
+
+
+            // ensure it doesn't over or under-extrude
+            double mult_flow = 1;
+            if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly) {
+                // compute real volume
+                double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
+                if (extruded_volume != 0 && polyline_volume != 0) mult_flow *= polyline_volume / extruded_volume;
+                //failsafe, it can happen
+                if (mult_flow > 1.3) mult_flow = 1.3;
+                if (mult_flow < 0.8) mult_flow = 0.8;
+                BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << ": Arachne Fill process extrude " << extruded_volume << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by " << mult_flow;
+                
+                //apply mult_flow
+                class ApplyFlow : public ExtrusionVisitorRecursive {
+                    double mult_flow;
+                public:
+                    ApplyFlow(double mult_flow) : mult_flow(mult_flow) {}
+                    virtual void use(ExtrusionPath& path) override {
+                        path.mm3_per_mm *= mult_flow;
+                        path.width *= mult_flow;
+                    }
+                    virtual void use(ExtrusionPath3D& path3D) override {
+                        path3D.mm3_per_mm *= mult_flow;
+                        path3D.width *= mult_flow;
+                    }
+                } flow_multiplier(mult_flow);
+                all_new_paths->visit(flow_multiplier);
+            }
+
+            //save into layer
+            if (all_new_paths->entities().size() > 0) {
+                out.push_back(all_new_paths);
+            } else {
+                delete all_new_paths;
+            }
+
+        } else {
+            Polylines simple_polylines = this->fill_surface(surface, params);
+
+            if (simple_polylines.empty())
+                return;
+
+            // ensure it doesn't over or under-extrude
+            double mult_flow = 1;
+            if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly){
+                // compute the path of the nozzle -> extruded volume
+                double length_tot = 0;
+                for (auto pline = simple_polylines.begin(); pline != simple_polylines.end(); ++pline){
+                    Lines lines = pline->lines();
+                    for (auto line = lines.begin(); line != lines.end(); ++line){
+                        length_tot += unscaled(line->length());
+                    }
+                }
+                //compute flow to remove spacing_ratio from the equation
+                double extruded_volume = 0;
+                if (params.flow.spacing_ratio() < 1.f && !params.flow.bridge()) {
+                    // the spacing is larger than usual. get the flow from the current spacing
+                    Flow test_flow = Flow::new_from_spacing(params.flow.spacing(), params.flow.nozzle_diameter(), params.flow.height(), 1, params.flow.bridge());
+                    extruded_volume = test_flow.mm3_per_mm() * length_tot;
+                }else
+                    extruded_volume = params.flow.mm3_per_mm() * length_tot;
+                // compute real volume
+                double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
+                if (extruded_volume != 0 && polyline_volume != 0) mult_flow *= polyline_volume / extruded_volume;
+                //failsafe, it can happen
+                if (mult_flow > 1.3) mult_flow = 1.3;
+                if (mult_flow < 0.8) mult_flow = 0.8;
+                BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << ": Fill process extrude " << extruded_volume << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by " << mult_flow;
+            }
+
+            // Save into layer.
+            auto* eec = new ExtrusionEntityCollection();
+            /// pass the no_sort attribute to the extrusion path
+            eec->set_can_sort_reverse(!this->no_sort(), !this->no_sort());
+            /// add it into the collection
+            out.push_back(eec);
+            //get the role
+            ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
+            /// push the path
+            extrusion_entities_append_paths(
+                eec->set_entities(), std::move(simple_polylines),
+                good_role,
+                params.flow.mm3_per_mm()* params.flow_mult * mult_flow,
+                (float)(params.flow.width()* params.flow_mult * mult_flow),
+                (float)params.flow.height());
+        }
     } catch (InfillFailedException&) {
     }
-    if (polylines.empty())
-        return;
 
-    // ensure it doesn't over or under-extrude
-    double mult_flow = 1;
-    if (!params.dont_adjust && params.full_infill() && !params.flow.bridge() && params.fill_exactly){
-        // compute the path of the nozzle -> extruded volume
-        double length_tot = 0;
-        for (auto pline = polylines.begin(); pline != polylines.end(); ++pline){
-            Lines lines = pline->lines();
-            for (auto line = lines.begin(); line != lines.end(); ++line){
-                length_tot += unscaled(line->length());
-            }
-        }
-        //compute flow to remove spacing_ratio from the equation
-        double extruded_volume = 0;
-        if (params.flow.spacing_ratio() < 1.f && !params.flow.bridge()) {
-            // the spacing is larger than usual. get the flow from the current spacing
-            Flow test_flow = Flow::new_from_spacing(params.flow.spacing(), params.flow.nozzle_diameter(), params.flow.height(), 1, params.flow.bridge());
-            extruded_volume = test_flow.mm3_per_mm() * length_tot;
-        }else
-            extruded_volume = params.flow.mm3_per_mm() * length_tot;
-        // compute real volume
-        double polyline_volume = compute_unscaled_volume_to_fill(surface, params);
-        if (extruded_volume != 0 && polyline_volume != 0) mult_flow *= polyline_volume / extruded_volume;
-        //failsafe, it can happen
-        if (mult_flow > 1.3) mult_flow = 1.3;
-        if (mult_flow < 0.8) mult_flow = 0.8;
-        BOOST_LOG_TRIVIAL(info) << "Layer " << layer_id << ": Fill process extrude " << extruded_volume << " mm3 for a volume of " << polyline_volume << " mm3 : we mult the flow by " << mult_flow;
-    }
-
-    // Save into layer.
-    auto *eec = new ExtrusionEntityCollection();
-    /// pass the no_sort attribute to the extrusion path
-    eec->set_can_sort_reverse(!this->no_sort(), !this->no_sort());
-    /// add it into the collection
-    out.push_back(eec);
-    //get the role
-    ExtrusionRole good_role = getRoleFromSurfaceType(params, surface);
-    /// push the path
-    extrusion_entities_append_paths(
-        eec->set_entities(), std::move(polylines),
-        good_role,
-        params.flow.mm3_per_mm() * params.flow_mult * mult_flow,
-        (float)(params.flow.width() * params.flow_mult * mult_flow),
-        (float)params.flow.height());
-    
 }
 
 
@@ -278,7 +360,7 @@ Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, Ext
         //test
 #ifdef _DEBUG
         for (ThickPolyline poly : polylines_gapfill) {
-            for (coordf_t width : poly.width) {
+            for (coord_t width : poly.points_width) {
                 if (width > params.flow.scaled_width() * 2.2) {
                     std::cerr << "ERRROR!!!! gapfill width = " << unscaled(width) << " > max_width = " << (params.flow.width() * 2) << "\n";
                 }
@@ -286,7 +368,7 @@ Fill::do_gap_fill(const ExPolygons& gapfill_areas, const FillParams& params, Ext
         }
 #endif
 
-        ExtrusionEntitiesPtr gap_fill_entities = Geometry::thin_variable_width(polylines_gapfill, erGapFill, params.flow, scale_t(params.config->get_computed_value("resolution_internal")));
+        ExtrusionEntitiesPtr gap_fill_entities = Geometry::thin_variable_width(polylines_gapfill, erGapFill, params.flow, scale_t(params.config->get_computed_value("resolution_internal")), true);
         ////set role if needed
         //if (params.role != erSolidInfill) {
         //    ExtrusionSetRole set_good_role(params.role);
@@ -572,8 +654,8 @@ void connect_infill(const Polylines& infill_ordered, const ExPolygon& boundary, 
     for (const Polyline& polyline : infill_ordered) {
         if (polyline.length() > 2.01 * clip_size) {
             polylines_blocker.push_back(polyline);
-            polylines_blocker.back().clip_end((double)clip_size);
-            polylines_blocker.back().clip_start((double)clip_size);
+            polylines_blocker.back().clip_end((coordf_t)clip_size);
+            polylines_blocker.back().clip_start((coordf_t)clip_size);
         }
     }
 

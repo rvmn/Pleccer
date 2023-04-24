@@ -13,12 +13,25 @@
 
 namespace Slic3r {
 
+    namespace Arachne {
+        struct ExtrusionLine;
+    }
+
 struct PerimeterIntersectionPoint {
     size_t idx_children;
     Point child_best;
     Point outter_best;
     size_t idx_polyline_outter;
     coord_t distance;
+};
+
+struct PerimeterGeneratorArachneExtrusion
+{
+    Arachne::ExtrusionLine* extrusion = nullptr;
+    // Indicates if closed ExtrusionLine is a contour or a hole. Used it only when ExtrusionLine is a closed loop.
+    bool is_contour = false;
+    // Should this extrusion be fuzzyfied on path generation?
+    bool fuzzify = false;
 };
 
 // Hierarchy of perimeters.
@@ -51,6 +64,13 @@ public:
 
 typedef std::vector<PerimeterGeneratorLoop> PerimeterGeneratorLoops;
 
+struct ProcessSurfaceResult {
+    ExPolygons inner_perimeter;
+    ExPolygons gap_srf;
+    ExPolygons top_fills;
+    ExPolygons fill_clip;
+};
+
 class PerimeterGenerator {
 public:
     // Inputs:
@@ -65,6 +85,7 @@ public:
     const PrintRegionConfig     *config;
     const PrintObjectConfig     *object_config;
     const PrintConfig           *print_config;
+    bool                         use_arachne = false;
     // Outputs:
     ExtrusionEntityCollection   *loops;
     ExtrusionEntityCollection   *gap_fill;
@@ -100,7 +121,6 @@ public:
     double      ext_mm3_per_mm()        const { return m_ext_mm3_per_mm; }
     double      mm3_per_mm()            const { return m_mm3_per_mm; }
     double      mm3_per_mm_overhang()   const { return m_mm3_per_mm_overhang; }
-    Polygons    lower_slices_polygons() const { return m_lower_slices_polygons; }
 
     coord_t     get_resolution(size_t perimeter_id, bool is_overhang, const Surface* srf) const;
 
@@ -109,16 +129,41 @@ private:
     double      m_ext_mm3_per_mm;
     double      m_mm3_per_mm;
     double      m_mm3_per_mm_overhang;
-    Polygons    m_lower_slices_polygons;
     Polygons    _lower_slices_bridge_flow_small;
     Polygons    _lower_slices_bridge_flow_big;
     Polygons    _lower_slices_bridge_speed_small;
     Polygons    _lower_slices_bridge_speed_big;
+    ClipperLib_Z::Paths m_lower_slices_clipperpaths;
+    ClipperLib_Z::Paths _lower_slices_bridge_flow_small_clipperpaths;
+    ClipperLib_Z::Paths _lower_slices_bridge_flow_big_clipperpaths;
+    ClipperLib_Z::Paths _lower_slices_bridge_speed_small_clipperpaths;
+    ClipperLib_Z::Paths _lower_slices_bridge_speed_big_clipperpaths;
 
+    //process data
+    coord_t perimeter_width; coord_t get_perimeter_width() { return perimeter_width; }
+    coord_t perimeter_spacing; coord_t get_perimeter_spacing() { return perimeter_spacing; }
+    coord_t ext_perimeter_width; coord_t get_ext_perimeter_width() { return ext_perimeter_width; }
+    coord_t ext_perimeter_spacing; coord_t get_ext_perimeter_spacing() { return ext_perimeter_spacing; }
+    coord_t ext_perimeter_spacing2; coord_t get_ext_perimeter_spacing2() { return ext_perimeter_spacing2; }
+    coord_t gap_fill_spacing; coord_t get_gap_fill_spacing() { return gap_fill_spacing; }
+    coord_t gap_fill_spacing_external; coord_t get_gap_fill_spacing_external() { return gap_fill_spacing_external; }
+    coord_t infill_gap; coord_t get_infill_gap() { return infill_gap; }
+    coord_t solid_infill_spacing; coord_t get_solid_infill_spacing() { return solid_infill_spacing; }
+    bool round_peri;
+    coord_t min_round_spacing; coord_t get_min_round_spacing() { return min_round_spacing; }
+    ExPolygons unmillable;
+    coord_t mill_extra_size;
+
+    ProcessSurfaceResult process_classic(int& loop_number, const Surface& surface);
+    ProcessSurfaceResult process_arachne(int& loop_number, const Surface& surface);
+    
+    void        processs_no_bridge(Surfaces& all_surfaces);
     ExtrusionPaths create_overhangs(const Polyline& loop_polygons, ExtrusionRole role, bool is_external) const;
+    ExtrusionPaths create_overhangs(const ClipperLib_Z::Path& loop_polygons, ExtrusionRole role, bool is_external) const;
 
     // transform loops into ExtrusionEntityCollection, adding also thin walls into it.
-    ExtrusionEntityCollection _traverse_loops(const PerimeterGeneratorLoops &loops, ThickPolylines &thin_walls) const;
+    ExtrusionEntityCollection _traverse_loops(const PerimeterGeneratorLoops &loops, ThickPolylines &thin_walls, int count_since_overhang = 0) const;
+    ExtrusionEntityCollection _traverse_extrusions(std::vector<PerimeterGeneratorArachneExtrusion>& pg_extrusions);
     // try to merge thin walls to a current periemter exrusion or just add it to the end of the list.
     void _merge_thin_walls(ExtrusionEntityCollection &extrusions, ThickPolylines &thin_walls) const;
     // like _traverse_loops but with merging all periemter into one continuous loop
@@ -127,7 +172,11 @@ private:
     ExtrusionLoop _extrude_and_cut_loop(const PerimeterGeneratorLoop& loop, const Point entryPoint, const Line& direction = Line(Point(0, 0), Point(0, 0)), bool enforce_loop = false) const;
     // sub-function of _traverse_and_join_loops, find the good splot to cut a loop to be able to join it with an other one
     PerimeterIntersectionPoint _get_nearest_point(const PerimeterGeneratorLoops &children, ExtrusionLoop &myPolylines, const coord_t dist_cut, const coord_t max_dist) const;
+
+
 };
+
+
 
 }
 

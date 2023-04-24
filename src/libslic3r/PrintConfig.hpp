@@ -39,8 +39,6 @@
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/tuple/to_seq.hpp>
 
-// #define HAS_PRESSURE_EQUALIZER
-
 namespace Slic3r {
 
 enum CompleteObjectSort {
@@ -109,10 +107,9 @@ enum class BridgeType : uint8_t {
 enum class FuzzySkinType {
     None,
     External,
+    Shell,
     All,
 };
-
-#define HAS_LIGHTNING_INFILL 0
 
 enum InfillPattern : uint8_t{
     ipRectilinear, ipAlignedRectilinear, ipGrid, ipTriangles, ipStars, ipCubic, ipLine,
@@ -127,9 +124,7 @@ enum InfillPattern : uint8_t{
     ipRectilinearWGapFill,
     ipMonotonic,
     ipMonotonicWGapFill,
-#if HAS_LIGHTNING_INFILL
     ipLightning,
-#endif // HAS_LIGHTNING_INFILL
     ipAuto,
     ipCount,
 };
@@ -255,6 +250,15 @@ enum DraftShield {
     dsEnabled,
 };
 
+enum class PerimeterGeneratorType
+{
+    // Classic perimeter generator using Clipper offsets with constant extrusion width.
+    Classic,
+    // Perimeter generator with variable extrusion width based on the paper
+    // "A framework for adaptive width control of dense contour-parallel toolpaths in fused deposition modeling" ported from Cura.
+    Arachne
+};
+
 enum class GCodeThumbnailsFormat {
     PNG, JPG, QOI, BIQU
 };
@@ -300,6 +304,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(BrimType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(DraftShield)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(GCodeThumbnailsFormat)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(ZLiftTop)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PerimeterGeneratorType)
 
 #undef CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS
 
@@ -684,13 +689,15 @@ PRINT_CONFIG_CLASS_DEFINE(
     PrintObjectConfig,
 
     ((ConfigOptionBool,                 brim_inside_holes))
-    ((ConfigOptionFloat,                brim_width))
+    ((ConfigOptionFloat,                brim_width)) 
     ((ConfigOptionFloat,                brim_width_interior))
     ((ConfigOptionBool,                 brim_ears))
     ((ConfigOptionFloat,                brim_ears_detection_length))
     ((ConfigOptionFloat,                brim_ears_max_angle))
     ((ConfigOptionEnum<InfillPattern>,  brim_ears_pattern))
+    ((ConfigOptionBool,                 brim_per_object))
     ((ConfigOptionFloat,                brim_separation))
+    ((ConfigOptionBool,                 minimal_support))
     //((ConfigOptionEnum<BrimType>,       brim_type))
     ((ConfigOptionBool,                 clip_multipart_objects))
     ((ConfigOptionBool,                 dont_support_bridges))
@@ -711,26 +718,41 @@ PRINT_CONFIG_CLASS_DEFINE(
     // Force the generation of solid shells between adjacent materials/volumes.
     ((ConfigOptionBool,                 interface_shells))
     ((ConfigOptionFloat,                layer_height))
+    ((ConfigOptionFloatOrPercent,       min_bead_width))
+    ((ConfigOptionFloatOrPercent,       min_feature_size))
     ((ConfigOptionFloat,                mmu_segmented_region_max_width))
     ((ConfigOptionFloat,                model_precision))
     ((ConfigOptionPercent,              perimeter_bonding))
+    ((ConfigOptionEnum<PerimeterGeneratorType>, perimeter_generator))
     ((ConfigOptionFloat,                raft_contact_distance))
     ((ConfigOptionFloat,                raft_expansion))
     ((ConfigOptionPercent,              raft_first_layer_density))
     ((ConfigOptionFloat,                raft_first_layer_expansion))
+    ((ConfigOptionFloatOrPercent,       raft_interface_layer_height))
     ((ConfigOptionInt,                  raft_layers))
+    ((ConfigOptionFloatOrPercent,       raft_layer_height))
     ((ConfigOptionEnum<SeamPosition>,   seam_position))
     ((ConfigOptionPercent,              seam_angle_cost))
     ((ConfigOptionPercent,              seam_travel_cost))
+    ((ConfigOptionFloatOrPercent,       seam_notch_all))
+    ((ConfigOptionFloat,                seam_notch_angle))
+    ((ConfigOptionFloatOrPercent,       seam_notch_inner))
+    ((ConfigOptionFloatOrPercent,       seam_notch_outer))
+    ((ConfigOptionBool,                 seam_visibility))
 //    ((ConfigOptionFloat,                seam_preferred_direction))
 //    ((ConfigOptionFloat,                seam_preferred_direction_jitter))
     ((ConfigOptionFloat,                slice_closing_radius))
     ((ConfigOptionEnum<SlicingMode>,    slicing_mode))
     ((ConfigOptionBool,                 support_material))
+    ((ConfigOptionFloatOrPercent,       wall_transition_length))
+    ((ConfigOptionFloatOrPercent,       wall_transition_filter_deviation))
+    ((ConfigOptionFloat,                wall_transition_angle))
+    ((ConfigOptionInt,                  wall_distribution_count))
     // Automatic supports (generated based on support_material_threshold).
     ((ConfigOptionBool,                 support_material_auto))
     // Direction of the support pattern (in XY plane).
     ((ConfigOptionFloat,                support_material_angle))
+    ((ConfigOptionFloat,                support_material_angle_height))
     ((ConfigOptionBool,                 support_material_buildplate_only))
     ((ConfigOptionEnum<SupportZDistanceType>,   support_material_contact_distance_type))
     // support_material_contact_distance (PS) == support_material_contact_distance_top (SuSi 2.3 &-)
@@ -740,9 +762,12 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionInt,                  support_material_enforce_layers))
     ((ConfigOptionInt,                  support_material_extruder))
     ((ConfigOptionFloatOrPercent,       support_material_extrusion_width))
+    ((ConfigOptionFloat,                support_material_interface_angle))
+    ((ConfigOptionFloat,                support_material_interface_angle_increment))
     ((ConfigOptionBool,                 support_material_interface_contact_loops))
     ((ConfigOptionInt,                  support_material_interface_extruder))
     ((ConfigOptionInt,                  support_material_interface_layers))
+    ((ConfigOptionFloatOrPercent,       support_material_interface_layer_height))
     ((ConfigOptionInt,                  support_material_bottom_interface_layers))
     // Spacing between interface lines (the hatching distance). Set zero to get a solid interface.
     ((ConfigOptionFloat,                support_material_interface_spacing))
@@ -751,6 +776,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<SupportMaterialPattern>,  support_material_pattern))
     // Morphological closing of support areas. Only used for "sung" supports.
     ((ConfigOptionFloat,                support_material_closing_radius))
+    ((ConfigOptionFloatOrPercent,       support_material_layer_height))
     // Spacing between support material lines (the hatching distance).
     ((ConfigOptionFloat,                support_material_spacing))
     ((ConfigOptionFloatOrPercent,       support_material_speed))
@@ -771,6 +797,9 @@ PRINT_CONFIG_CLASS_DEFINE(
     PrintRegionConfig,
 
     ((ConfigOptionFloat,                bridge_angle))
+    ((ConfigOptionBool,                overhang_infill_first))
+    ((ConfigOptionEnum<InfillPattern>,  bridge_fill_pattern))
+    ((ConfigOptionEnum<InfillPattern>,  overhang_fill_pattern))
     ((ConfigOptionEnum<BridgeType>,     bridge_type))
     ((ConfigOptionFloat,                bds_ratio_length))
     ((ConfigOptionFloat,                bds_ratio_nr))
@@ -778,13 +807,13 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                bds_max_length))
     ((ConfigOptionFloat,                arc_radius))
     ((ConfigOptionFloat,                arc_infill_raylen))
+    ((ConfigOptionFloat,                overhang_distance))
     ((ConfigOptionInt,                  bottom_solid_layers))
     ((ConfigOptionFloat,                bottom_solid_min_thickness))
     ((ConfigOptionPercent,              bridge_flow_ratio))
     ((ConfigOptionPercent,              over_bridge_flow_ratio))
     ((ConfigOptionPercent,              bridge_overlap))
     ((ConfigOptionPercent,              bridge_overlap_min))
-    ((ConfigOptionEnum<InfillPattern>,  bottom_fill_pattern))
     ((ConfigOptionFloatOrPercent,       bridged_infill_margin))
     ((ConfigOptionFloatOrPercent,       bridge_speed))
     ((ConfigOptionFloatOrPercent,       bridge_speed_internal))
@@ -824,9 +853,13 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionPercent,              fill_smooth_distribution))
     ((ConfigOptionFloatOrPercent,       fill_smooth_width))
     ((ConfigOptionBool,                 gap_fill_enabled))
+    ((ConfigOptionFloatOrPercent,       gap_fill_extension))
     ((ConfigOptionPercent,              gap_fill_flow_match_perimeter))
     ((ConfigOptionBool,                 gap_fill_last))
+    ((ConfigOptionFloatOrPercent,       gap_fill_max_width))
     ((ConfigOptionFloatOrPercent,       gap_fill_min_area))
+    ((ConfigOptionFloatOrPercent,       gap_fill_min_length))
+    ((ConfigOptionFloatOrPercent,       gap_fill_min_width))
     ((ConfigOptionPercent,              gap_fill_overlap))
     ((ConfigOptionFloatOrPercent,       gap_fill_speed))
     ((ConfigOptionFloatOrPercent,       infill_anchor))
@@ -845,6 +878,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<InfillConnection>,  infill_connection_top))
     ((ConfigOptionEnum<InfillConnection>,  infill_connection_bottom))
     ((ConfigOptionEnum<InfillConnection>,  infill_connection_bridge))
+    ((ConfigOptionEnum<InfillConnection>,  infill_connection_overhang))
     ((ConfigOptionBool,                 infill_dense))
     ((ConfigOptionEnum<DenseInfillAlgo>,  infill_dense_algo))
     ((ConfigOptionBool,                 infill_first))
@@ -863,6 +897,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       min_width_top_surface))
     // Detect bridging perimeters
     ((ConfigOptionFloatOrPercent,       overhangs_speed))
+    ((ConfigOptionInt,                  overhangs_speed_enforce))
     ((ConfigOptionFloatOrPercent,       overhangs_width))
     ((ConfigOptionFloatOrPercent,       overhangs_width_speed))
     ((ConfigOptionBool,                 overhangs_reverse))
@@ -885,7 +920,6 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       small_perimeter_min_length))
     ((ConfigOptionFloatOrPercent,       small_perimeter_max_length))
     ((ConfigOptionEnum<InfillPattern>,  solid_fill_pattern))
-    ((ConfigOptionEnum<InfillPattern>,  bridge_fill_pattern))
     ((ConfigOptionFloat,                solid_infill_below_area))
     ((ConfigOptionInt,                  solid_infill_extruder))
     ((ConfigOptionFloatOrPercent,       solid_infill_extrusion_width))
@@ -902,6 +936,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloatOrPercent,       thin_walls_overlap))
     ((ConfigOptionFloatOrPercent,       thin_walls_speed))
     ((ConfigOptionEnum<InfillPattern>,  top_fill_pattern))
+    ((ConfigOptionEnum<InfillPattern>,  bottom_fill_pattern))
     ((ConfigOptionFloatOrPercent,       top_infill_extrusion_width))
     ((ConfigOptionFloatOrPercent,       top_infill_extrusion_spacing))
     ((ConfigOptionInt,                  top_solid_layers))
@@ -966,6 +1001,8 @@ PRINT_CONFIG_CLASS_DEFINE(
 PRINT_CONFIG_CLASS_DEFINE(
     GCodeConfig,
 
+    ((ConfigOptionBool,                arc_fitting))
+    ((ConfigOptionFloatOrPercent,      arc_fitting_tolerance))
     ((ConfigOptionString,              before_layer_gcode))
     ((ConfigOptionString,              between_objects_gcode))
     ((ConfigOptionFloats,              deretract_speed))
@@ -1015,7 +1052,6 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                gcode_comments))
     ((ConfigOptionString,              gcode_filename_illegal_char))
     ((ConfigOptionEnum<GCodeFlavor>,   gcode_flavor))
-    ((ConfigOptionBool,                overhang_infill_first))
     ((ConfigOptionEnum<ArcPosition>,   arc_position))
     ((ConfigOptionBool,                gcode_label_objects))
     ((ConfigOptionInt,                 gcode_precision_xyz))
@@ -1030,6 +1066,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,               max_gcode_per_second))
     ((ConfigOptionFloatOrPercent,      max_print_speed))
     ((ConfigOptionFloat,               max_volumetric_speed))
+    ((ConfigOptionFloat,               max_volumetric_extrusion_rate_slope_positive))
+    ((ConfigOptionFloat,               max_volumetric_extrusion_rate_slope_negative))
     ((ConfigOptionFloats,              milling_z_lift))
     ((ConfigOptionFloat,               min_length))
     ((ConfigOptionPercents,            retract_before_wipe))
@@ -1112,7 +1150,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInts,                 chamber_temperature))
     ((ConfigOptionBool,                 complete_objects))
     ((ConfigOptionBool,                 complete_objects_one_skirt))
-    ((ConfigOptionBool,                 complete_objects_one_brim))
+    //((ConfigOptionBool,                 complete_objects_one_brim))
     ((ConfigOptionEnum<CompleteObjectSort>, complete_objects_sort))
     ((ConfigOptionFloats,               colorprint_heights))
     //((ConfigOptionBools,                cooling))
@@ -1185,6 +1223,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInt,                  skirt_height))
     ((ConfigOptionFloatOrPercent,       skirt_extrusion_width))
     ((ConfigOptionFloatsOrPercents,     seam_gap))
+    ((ConfigOptionFloatsOrPercents,     seam_gap_external))
     ((ConfigOptionInt,                  skirts))
     ((ConfigOptionFloats,               slowdown_below_layer_time))
     ((ConfigOptionBool,                 spiral_vase))
@@ -1200,6 +1239,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionString,               thumbnails_color))
     ((ConfigOptionBool,                 thumbnails_custom_color))
     ((ConfigOptionBool,                 thumbnails_end_file))
+    ((ConfigOptionEnum<GCodeThumbnailsFormat>, thumbnails_format))
     ((ConfigOptionBool,                 thumbnails_with_bed))
     ((ConfigOptionPercent,              time_estimation_compensation))
     ((ConfigOptionFloat,                time_cost))
@@ -1391,7 +1431,7 @@ PRINT_CONFIG_CLASS_DEFINE(
 
 )
 
-enum SLAMaterialSpeed { slamsSlow, slamsFast };
+enum SLAMaterialSpeed { slamsSlow, slamsFast, slamsHighViscosity };
 
 PRINT_CONFIG_CLASS_DEFINE(
     SLAMaterialConfig,
@@ -1436,6 +1476,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                        gamma_correction))
     ((ConfigOptionFloat,                        fast_tilt_time))
     ((ConfigOptionFloat,                        slow_tilt_time))
+    ((ConfigOptionFloat,                        high_viscosity_tilt_time))
     ((ConfigOptionFloat,                        area_fill))
     ((ConfigOptionFloat,                        min_exposure_time))
     ((ConfigOptionFloat,                        max_exposure_time))

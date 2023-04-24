@@ -24,6 +24,8 @@
 	#endif
 	#ifdef __APPLE__
         #include <mach/mach.h>
+// for _NSGetExecutablePath
+        #include <mach-o/dyld.h>
     #endif
     #ifdef __linux__
         #include <sys/stat.h>
@@ -69,6 +71,19 @@
 
 #ifdef _MSC_VER 
     #define strcasecmp _stricmp
+#endif
+
+#include <cstdlib>   // getenv()
+#ifdef WIN32
+	// The standard Windows includes.
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <shellapi.h>
+#else
+	// POSIX
+#include <sstream>
+#include <boost/process.hpp>
+#include <unistd.h>     //readlink
 #endif
 
 namespace Slic3r {
@@ -472,6 +487,97 @@ namespace WindowsSupport
 	}
 } // namespace WindowsSupport
 #endif /* _WIN32 */
+
+
+// Try to find where the file can be.
+// First try without any modification, for absolute apth and relative path fromt he current directory
+// Then try from the slic3r.exe directory
+// Then from the configuration directory
+// Then from the USER directory
+boost::filesystem::path find_full_path(const boost::filesystem::path filename, const boost::filesystem::path return_fail) {
+    if (filename.empty()) return return_fail;
+    boost::filesystem::path ret = filename;
+    if (!boost::filesystem::exists(filename)) {
+        // try from our install directory 
+#ifdef WIN32
+        wchar_t wpath_exe[_MAX_PATH + 1];
+        ::GetModuleFileNameW(nullptr, wpath_exe, _MAX_PATH);
+        boost::filesystem::path local_dir = boost::filesystem::path(wpath_exe).parent_path();
+#else
+        char result[PATH_MAX + 1];
+        boost::filesystem::path local_dir(".");
+#ifdef __APPLE__
+        uint32_t count = uint32_t(PATH_MAX + 1);
+        if (_NSGetExecutablePath(result, &count) == 0) {
+#else
+        int32_t count = readlink("/proc/self/exe", result, sizeof(result) - 1);
+        if (count != -1) {
+#endif
+            local_dir = boost::filesystem::path(std::string(result, (count > 0) ? count : 0)).parent_path();
+        }
+#endif
+        if (!boost::filesystem::exists(local_dir / filename)) {
+            //try with configuration directory
+            local_dir = boost::filesystem::path(Slic3r::data_dir());
+        }
+        if (!boost::filesystem::exists(local_dir / filename)) {
+            //try with configuration directory
+#ifdef WIN32
+            local_dir = boost::filesystem::path(::getenv("USERPROFILE"));
+#else
+            local_dir = boost::filesystem::path(::getenv("HOME"));
+#endif
+        }
+        if (!boost::filesystem::exists(local_dir / filename)) {
+            return return_fail;
+        } else {
+            ret = local_dir / filename;
+        }
+    }
+    return ret;
+}
+
+boost::filesystem::path shorten_path(const boost::filesystem::path filename) {
+    if (filename.empty()) return filename;
+    std::string current_filename = filename.generic_string();
+    // try from our install directory 
+#ifdef WIN32
+    wchar_t wpath_exe[_MAX_PATH + 1];
+    ::GetModuleFileNameW(nullptr, wpath_exe, _MAX_PATH);
+    std::string local_dir = boost::filesystem::path(wpath_exe).parent_path().generic_string();
+#else
+    char result[PATH_MAX + 1];
+    std::string local_dir = ".";
+#ifdef __APPLE__
+    uint32_t count = uint32_t(PATH_MAX + 1);
+    if (_NSGetExecutablePath(result, &count) == 0) {
+#else
+    int32_t count = readlink("/proc/self/exe", result, sizeof(result) - 1);
+    if (count != -1) {
+#endif
+        local_dir = boost::filesystem::path(std::string(result, (count > 0) ? count : 0)).parent_path().generic_string();
+    }
+#endif
+    if (boost::starts_with(current_filename, local_dir)) {
+        return boost::filesystem::path(current_filename.substr(local_dir.size() + 1));
+    }
+    //try with configuration directory
+    local_dir = Slic3r::data_dir();
+    if (boost::starts_with(current_filename, local_dir)) {
+        return boost::filesystem::path(current_filename.substr(local_dir.size() + 1));
+    }
+    //try with configuration directory
+#ifdef WIN32
+    local_dir = boost::filesystem::path(::getenv("USERPROFILE")).generic_string();
+#else
+    local_dir = boost::filesystem::path(::getenv("HOME")).generic_string();
+#endif
+    if (boost::starts_with(current_filename, local_dir)) {
+        return boost::filesystem::path(current_filename.substr(local_dir.size() + 1));
+    }
+    return filename;
+}
+
 
 // borrowed from LVVM lib/Support/Windows/Path.inc
 std::error_code rename_file(const std::string &from, const std::string &to)
