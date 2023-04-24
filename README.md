@@ -1,10 +1,8 @@
 # SuperPleccer
 
-**A slicer focused on supporting multicolor 3D printing based on SuperSlicer**
+**A slicer focused on supporting waste-free 3D printing based on SuperSlicer**
 
-### ** This repo contains ongoing work on SuperPleccer, which will be developed in tandem with the main PrusaSlicer-based slicer. For the more cutting edge development, take a look at [that](https://github.com/pleccer/Pleccer)** ###
-
-SuperPleccer incorporates features to make it easier to make a colored 3d model and slice it for a multicolor mixing or non-mixing 3D printer. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing colorr 3D printer. You can find out more about PLEC on the [community site](https://plec.community).
+SuperPleccer incorporates features to make it possible to do waste-free printing. It is part of the PLEC (purgeless extruding colorer) project; which develops the needs to upgrade your/any printer to a mixing color 3D printer, but SuperPleccer is only using waste-optimizing features. You can find out more about PLEC on the [community site](https://plec.community).
 
 Prebuilt Windows, Linux and macOS 64-bit releases are available through the [git actions page](https://github.com/rvmn/SuperPleccer/actions). Click on the build for your platform and then on the archive name (`nightly_win64` or `SuperPleccer-gtk2.AppImage` or `nightly_macos.dmg`) in the "Artifacts" section in the top right corner.
 
@@ -20,14 +18,10 @@ the [documentation directory](doc/) for information about compilation.
 
 ### What are SuperPleccer main features?
 
-* Improved color picker (thanks to [colorgrab](https://github.com/nielssp/colorgrab))
-* Mixing color calibration setting (requires a diy/professional color measurer)
-* Mixing color g-code generation based on calibrated data and the color you pick
-* Enhanced smart retraction and gradient change calibration and automatic model updating for purge-free printing (no prime tower/purge)
 * Includes Arc overhang infill ["Multiplex"-version](https://github.com/stmcculloch/arc-overhang/issues/10) for almost-support-free printing
 * Includes Lightning infill from [PrusaSlicer/Cura](https://blog.prusa3d.com/prusaslicer-2-5-is-here-new-perimeter-generator-step-file-support-lightning-infill-and-more_70562/)
 * Includes Arachne perimeter generator for adaptive perimeter widths
-* It has also all the current SuperSlicer features.
+* It has also all the current SuperSlicer [v2.5.92.2 - Arc fitting edition](https://github.com/supermerill/SuperSlicer/releases/tag/2.5.59.2) features.
 
 ### Complete changelog [here](https://github.com/rvmn/SuperPleccer/wiki)
 
