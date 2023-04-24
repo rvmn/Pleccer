@@ -25,37 +25,46 @@ uint16_t PrintRegion::extruder(FlowRole role, const PrintObject& object) const
 Flow PrintRegion::flow(const PrintObject &object, FlowRole role, double layer_height, bool first_layer) const
 {
     ConfigOptionFloatOrPercent  config_width;
+    ConfigOptionFloatOrPercent  config_spacing;
     // Get extrusion width from configuration.
 	double overlap = 1.;
     // (might be an absolute value, or a percent value, or zero for auto)
      if (role == frExternalPerimeter) {
         config_width = m_config.external_perimeter_extrusion_width;
+        config_spacing = m_config.external_perimeter_extrusion_spacing;
 		overlap = this->config().external_perimeter_overlap.get_abs_value(1);
     } else if (role == frPerimeter) {
         config_width = m_config.perimeter_extrusion_width;
+        config_spacing = m_config.perimeter_extrusion_spacing;
 		overlap = this->config().perimeter_overlap.get_abs_value(1);
     } else if (role == frInfill) {
         config_width = m_config.infill_extrusion_width;
+        config_spacing = m_config.infill_extrusion_spacing;
     } else if (role == frSolidInfill) {
         config_width = m_config.solid_infill_extrusion_width;
+        config_spacing = m_config.solid_infill_extrusion_spacing;
 		overlap = this->config().solid_infill_overlap.get_abs_value(1);
     } else if (role == frTopSolidInfill) {
         config_width = m_config.top_infill_extrusion_width;
+        config_spacing = m_config.top_infill_extrusion_spacing;
         overlap = this->config().solid_infill_overlap.get_abs_value(1);
     } else {
         throw Slic3r::InvalidArgument("Unknown role");
     }
     if (first_layer && object.config().first_layer_extrusion_width.value > 0) {
         config_width = object.config().first_layer_extrusion_width;
+        config_spacing = object.config().first_layer_extrusion_spacing;
     }
 
-    if (config_width.value == 0)
+    if (config_width.value == 0) {
         config_width = object.config().extrusion_width;
+        config_spacing = object.config().extrusion_spacing;
+    }
     
     // Get the configured nozzle_diameter for the extruder associated to the flow role requested.
     // Here this->extruder(role) - 1 may underflow to MAX_INT, but then the get_at() will follback to zero'th element, so everything is all right.
     double nozzle_diameter = object.print()->config().nozzle_diameter.get_at(this->extruder(role, object) - 1);
-    return Flow::new_from_config_width(role, config_width, (float)nozzle_diameter, (float)layer_height,
+    return Flow::new_from_config_width(role, config_width, config_spacing,(float)nozzle_diameter, (float)layer_height,
         (float)std::min(overlap, this->config().get_computed_value("filament_max_overlap", this->extruder(role, object) - 1)) );
         //bridge ? (float)m_config.bridge_flow_ratio.get_abs_value(1) : 0.0f);
 }
@@ -103,11 +112,6 @@ coordf_t PrintRegion::nozzle_dmr_avg(const PrintConfig &print_config) const
     return (print_config.nozzle_diameter.get_at(m_config.perimeter_extruder.value    - 1) + 
             print_config.nozzle_diameter.get_at(m_config.infill_extruder.value       - 1) + 
             print_config.nozzle_diameter.get_at(m_config.solid_infill_extruder.value - 1)) / 3.;
-}
-
-coordf_t PrintRegion::bridging_height_avg(const PrintConfig &print_config) const
-{
-    return this->nozzle_dmr_avg(print_config) * sqrt(m_config.bridge_flow_ratio.get_abs_value(1));
 }
 
 void PrintRegion::collect_object_printing_extruders(const PrintConfig &print_config, const PrintObjectConfig &object_config, const PrintRegionConfig &region_config, std::set<uint16_t> &object_extruders)

@@ -54,8 +54,8 @@ public:
     /// _min_width : minimum width of the extrusion, every spot where a circle diameter is lower than that will be ignored (unless it's the tip of the extrusion)
     /// _height: height of the extrusion, used to compute the difference between width and spacing.
     MedialAxis(const ExPolygon& _expolygon, const coord_t _max_width, const coord_t _min_width, const coord_t _height)
-        : surface(_expolygon), max_width(_max_width), min_width(_min_width), height(_height),
-        bounds(&_expolygon), nozzle_diameter(_min_width), taper_size(0), stop_at_min_width(true), resolution(12500), min_length(_max_width) {/*id= staticid;staticid++;*/
+        : m_surface(_expolygon), m_max_width(_max_width), m_min_width(_min_width), m_height(_height),
+        m_bounds(&_expolygon), m_nozzle_diameter(_min_width), m_taper_size(0), m_stop_at_min_width(true), m_resolution(12500), m_min_length(_max_width) {/*id= staticid;staticid++;*/
     };
 
     /// create the polylines_out collection of variable-width polyline to extrude.
@@ -64,38 +64,44 @@ public:
     void build(Polylines& polylines);
 
     /// optional parameter: anchor area in which the extrusion should extends into. Default : expolygon (no bound)
-    MedialAxis& use_bounds(const ExPolygon& _bounds) { this->bounds = &_bounds; return *this; }
+    MedialAxis& use_bounds(const ExPolygon& _bounds) { this->m_bounds = &_bounds; return *this; }
     /// optional parameter: the real minimum width : it will grow the width of every extrusion that has a width lower than that. Default : min_width (same min)
-    MedialAxis& use_min_real_width(const coord_t nozzle_diameter) { this->nozzle_diameter = nozzle_diameter; return *this; }
+    MedialAxis& use_min_real_width(const coord_t nozzle_diameter) { this->m_nozzle_diameter = nozzle_diameter; return *this; }
     /// optional parameter: create a taper of this length at each end (inside a bound or not). Default : 0 (no taper)
-    MedialAxis& use_tapers(const coord_t taper_size) { this->taper_size = taper_size; return *this; }
+    MedialAxis& use_tapers(const coord_t taper_size) { this->m_taper_size = taper_size; return *this; }
     /// optional parameter: if true, the extension inside the bounds can be cut if the width is too small. Default : true
-    MedialAxis& set_stop_at_min_width(const bool stop_at_min_width) { this->stop_at_min_width = stop_at_min_width; return *this; }
-    MedialAxis& set_min_length(const coord_t min_length) { this->min_length = min_length; return *this; }
+    MedialAxis& set_stop_at_min_width(const bool stop_at_min_width) { this->m_stop_at_min_width = stop_at_min_width; return *this; }
+    MedialAxis& set_min_length(const coord_t min_length) { this->m_min_length = min_length; return *this; }
+    MedialAxis& set_biggest_width(const coord_t biggest_width) { this->m_biggest_width = biggest_width; return *this; }
+    MedialAxis& set_extension_length(const coord_t extension_length) { this->m_extension_length = extension_length; return *this; }
 
 private:
 
     /// input polygon to fill
-    const ExPolygon& surface;
+    const ExPolygon& m_surface;
     /// the copied expolygon from surface, it's modified in build() to simplify it. It's then used to create the voronoi diagram.
-    ExPolygon expolygon;
-    const ExPolygon* bounds;
-    /// maximum width of the extrusion. _expolygon shouldn't have a spot where a circle diameter is higher than that (or almost).
-    const coord_t max_width;
+    ExPolygon m_expolygon;
+    const ExPolygon* m_bounds;
+    /// maximum width for the algorithm. _expolygon shouldn't have a spot where a circle diameter is higher than that (or almost).
+    const coord_t m_max_width;
     /// minimum width of the extrusion, every spot where a circle diameter is lower than that will be ignored (unless it's the tip of the extrusion)
-    const coord_t min_width;
+    const coord_t m_min_width;
+    /// maximum width of the extrusion. if a point has a width higher than that, it will be removed
+    coord_t m_biggest_width = 0;
     /// minimum length of continuous segments (may cross a crossing)
-    coord_t min_length;
+    coord_t m_min_length;
     /// resolution for simplifuing and stuff like that
-    const coord_t resolution;
+    const coord_t m_resolution;
     /// height of the extrusion, used to compute the diufference between width and spacing.
-    const coord_t height;
+    const coord_t m_height;
     /// Used to compute the real minimum width we can extrude. if != min_width, it activate grow_to_nozzle_diameter(). 
-    coord_t nozzle_diameter;
+    coord_t m_nozzle_diameter;
     /// if != , it activates taper_ends(). Can use nozzle_diameter.
-    coord_t taper_size;
+    coord_t m_taper_size;
     //if true, remove_too_* can shorten the bits created by extends_line.
-    bool stop_at_min_width;
+    bool m_stop_at_min_width;
+    // arbitrary extra extension at ends.
+    coord_t m_extension_length = 0;
 
     //voronoi stuff
     class VD : public voronoi_diagram<double> {
@@ -123,16 +129,19 @@ private:
     void fusion_corners(ThickPolylines& pp);
     /// extends the polylines inside bounds, use extends_line on both end
     void extends_line_both_side(ThickPolylines& pp);
+    void extends_line_extra(ThickPolylines& pp);
     /// extends the polylines inside bounds (anchors)
     void extends_line(ThickPolyline& polyline, const ExPolygons& anchors, const coord_t join_width);
     /// remove too thin bits at start & end of polylines
     void remove_too_thin_extrusion(ThickPolylines& pp);
+    void remove_too_thick_extrusion(ThickPolylines& pp);
     /// when we have a too small polyline, try to see if we can't concatenate it at a crossing to keep it.
     void concatenate_small_polylines(ThickPolylines& pp);
     /// instead of keeping polyline split at each corssing, we try to create long strait polylines that can cross each other.
     void concatenate_polylines_with_crossing(ThickPolylines& pp);
     /// remove bits around points that are too thin (can be inside the polyline)
     void remove_too_thin_points(ThickPolylines& pp);
+    void remove_too_thick_points(ThickPolylines& pp);
     /// delete polylines that are too short (below the this->min_length)
     void remove_too_short_polylines(ThickPolylines& pp);
     /// be sure we didn't try to push more plastic than the volume defined by surface * height can receive. If overextruded, reduce all widths by the correct %.
@@ -148,7 +157,11 @@ private:
 };
 
 /// create a ExtrusionEntitiesPtr from ThickPolylines, discretizing the variable width into little sections (of 4*SCALED_RESOLUTION length) where needed. Please delete all ptr if not used.
-ExtrusionEntitiesPtr thin_variable_width(const ThickPolylines& polylines, const ExtrusionRole role, const Flow &flow, const coord_t resolution_internal);
+ExtrusionEntitiesPtr thin_variable_width(const ThickPolylines& polylines, const ExtrusionRole role, const Flow &flow, const coord_t resolution_internal, bool can_reverse);
+// used by thin_variable_width. Only does the work for a single polyline.
+ExtrusionMultiPath variable_width(const ThickPolyline& polyline, const ExtrusionRole role, const Flow& flow, const coord_t resolution_internal, const coord_t tolerance, bool can_reverse);
+//prefer using multi_variable_width
+ExtrusionPaths unsafe_variable_width(const ThickPolyline& polyline, const ExtrusionRole role, const Flow& flow, const coord_t resolution_internal, const coord_t tolerance);
 
 } } // namespace Slicer::Geometry
 

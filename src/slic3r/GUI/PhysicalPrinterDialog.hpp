@@ -101,6 +101,7 @@ protected:
     void on_dpi_changed(const wxRect& suggested_rect) override;
     void on_sys_color_changed() override {};
 
+    bool m_show_cert_fields = false;
     bool had_all_mk3;
 };
 

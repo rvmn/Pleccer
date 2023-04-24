@@ -145,10 +145,10 @@ bool BridgeDetector::detect_angle(double bridge_direction_override, const PrintR
                 for (int i = 0; i < _anchor_regions.size(); ++i) {
                     ExPolygon& poly = this->_anchor_regions[i];
                     BoundingBox& polybb = anchor_bb[i];
-                    /*if (polybb.contains(line.a) && poly.contains(line.a)) { // using short-circuit evaluation to test boundingbox and only then the other
+                    if (polybb.contains(line.a) && poly.contains(line.a)) { // using short-circuit evaluation to test boundingbox and only then the other
                         line_a_anchor_idx = i;
                         //candidates[i_angle].angle += 1.5*M_PI;
-                    }*/
+                    }
                     if (polybb.contains(line.b) && poly.contains(line.b)) { // using short-circuit evaluation to test boundingbox and only then the other
                         line_b_anchor_idx = i;
                     }
@@ -201,7 +201,7 @@ bool BridgeDetector::detect_angle(double bridge_direction_override, const PrintR
                     }
                 }
                 if(good_line) {
-		    this->is_bridge = true;
+		            this->is_bridge = true;
                     // This line could be anchored at both side and goes over the void to bridge it in its middle.
                     //store stats
                     c.total_length_anchored += len;
@@ -393,6 +393,8 @@ bool BridgeDetector::detect_angle(double bridge_direction_override, const PrintR
         this->angle -= 2*PI;
     else if (this->angle < 0)
 	this->angle += 2*PI;
+
+    if(params->overhang_distance>0 && !this->is_bridge  && !this->has_overhang_holes  && this->_pedestal.empty() && candidates[i_best].max_length_anchored/1000000 > float(params->overhang_distance.value)) this->is_bridge = true;
 
     #ifdef SLIC3R_DEBUG
     printf("  Optimal infill angle is %d degrees\n", (int)Slic3r::Geometry::rad2deg(this->angle));

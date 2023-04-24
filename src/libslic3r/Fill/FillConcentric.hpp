@@ -17,11 +17,23 @@ protected:
         const FillParams                &params,
         unsigned int                     thickness_layers,
         const std::pair<float, Point>   &direction,
-	const Polyline 			pedestal,
+        const Polyline 			pedestal,
         ExPolygon                        expolygon,
         Polylines                       &polylines_out) const override;
 
-	bool no_sort() const override { return true; }
+    void _fill_surface_single(const FillParams              &params,
+                              unsigned int                   thickness_layers,
+                              const std::pair<float, Point> &direction,
+                              const Polyline 			pedestal,
+                              ExPolygon                      expolygon,
+                              ThickPolylines                &thick_polylines_out) const override;
+
+    bool no_sort() const override { return true; }
+
+    const PrintConfig       *print_config        = nullptr;
+    const PrintObjectConfig *print_object_config = nullptr;
+
+    friend class Layer;
 };
 
 

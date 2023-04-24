@@ -322,7 +322,9 @@ void PhysicalPrinterDialog::update_printers()
 void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgroup)
 {
     m_optgroup->m_on_change = [this](t_config_option_key opt_key, boost::any value) {
-        if (opt_key == "host_type" || opt_key == "printhost_authorization_type")
+        if(opt_key == "printhost_client_cert_enabled")
+            this->m_show_cert_fields = boost::any_cast<bool>(value);
+        if (opt_key == "host_type" || opt_key == "printhost_authorization_type" || opt_key == "printhost_client_cert_enabled")
             this->update();
         if (opt_key == "print_host")
             this->update_printhost_buttons();
@@ -408,6 +410,18 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     port_line.append_widget(print_host_printers);
     m_optgroup->append_line(port_line);
 
+    {
+        ConfigOptionDef def;
+        def.label = L("Enable 2-way ssl authentication");
+        def.type = coBool;
+        def.tooltip = L("Use this option to enable 2-way ssl authentication with you printer.");
+        this->m_show_cert_fields = !m_config->opt_string("printhost_client_cert").empty();
+        def.set_default_value(new ConfigOptionBool{ this->m_show_cert_fields });
+        Option option(def, "printhost_client_cert_enabled");
+        option.opt.width = Field::def_width_wider();
+        m_optgroup->append_single_option_line(option);
+    }
+
     option = m_optgroup->get_option("printhost_client_cert");
     option.opt.width = Field::def_width_wider();
     Line client_cert_line = m_optgroup->create_single_option_line(option);
@@ -429,7 +443,13 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     client_cert_line.append_widget(printhost_client_cert_browse);
     m_optgroup->append_line(client_cert_line);
 
-    const auto client_cert_hint = _u8L("Client certificate file is optional. It is only needed if you use 2-way ssl.");
+    auto client_cert_hint =  _u8L("Client certificate (2-way SSL):") + "\n\t" +
+        _u8L("Client certificate is optional. It is only needed if you use 2-way ssl.");
+#ifdef __APPLE__
+    client_cert_hint += "\n\t" +
+        _u8L("To use a client cert on MacOS, you might need to add your certificate to your keychain and make sure it's trusted.") + "\n\t" +
+        _u8L("You can either use a path to your certificate or the name of your certificate as you can find it in your Keychain");
+#endif //__APPLE__
 
     Line clientcert_hint{ "", "" };
     clientcert_hint.full_width = 1;
@@ -440,6 +460,10 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         return sizer;
     };
     m_optgroup->append_line(clientcert_hint);
+
+    option = m_optgroup->get_option("printhost_client_cert_password");
+    option.opt.width = Field::def_width_wider();
+    m_optgroup->append_single_option_line(option);
 
     const auto ca_file_hint = _u8L("HTTPS CA file is optional. It is only needed if you use HTTPS with a self-signed certificate.");
 
@@ -586,6 +610,10 @@ void PhysicalPrinterDialog::update(bool printer_change)
             m_optgroup->hide_field("printhost_apikey");
             m_optgroup->hide_field("printhost_cafile");
         }
+
+        // Hide client cert options if disabled
+        m_optgroup->show_field("printhost_client_cert", this->m_show_cert_fields);
+        m_optgroup->show_field("printhost_client_cert_password", this->m_show_cert_fields);
     }
     else {
         m_optgroup->set_value("host_type", int(PrintHostType::htOctoPrint), false);
@@ -614,6 +642,7 @@ void PhysicalPrinterDialog::update(bool printer_change)
     }
 
     this->Layout();
+    this->Fit();
 }
 
 void PhysicalPrinterDialog::update_host_type(bool printer_change)
@@ -718,7 +747,7 @@ void PhysicalPrinterDialog::OnOK(wxEvent& event)
         return;
     }
     if (printer_name == m_default_name) {
-        warning_catcher(this, _L("You should change the name of your printer device."));
+        warning_catcher(this, _L("You have to enter a printer name."));
         return;
     }
 
@@ -772,6 +801,12 @@ void PhysicalPrinterDialog::OnOK(wxEvent& event)
 
     //update printer name, if it was changed
     m_printer.set_name(into_u8(printer_name));
+
+    //remove client_cert is not enbaled
+    if (!this->m_show_cert_fields) {
+        m_config->set("printhost_client_cert", "");
+        m_config->set("printhost_client_cert_password", "");
+    }
 
     // save new physical printer
     printers.save_printer(m_printer, renamed_from);

@@ -1454,7 +1454,7 @@ static inline std::vector<std::vector<ExPolygons>> mmu_segmentation_top_and_bott
                                              // Gap fill enabled. Enable a single line of 1/2 extrusion width.
                                              0.5f * (perimeter_extrusion_width) :
                                              // Gap fill disabled. Enable two lines slightly overlapping.
-                                             (perimeter_extrusion_width) + 0.7f * Flow::rounded_rectangle_extrusion_spacing(perimeter_extrusion_width, float(layer.height));
+                                             (perimeter_extrusion_width) + 0.7f * Flow::rounded_rectangle_extrusion_spacing(perimeter_extrusion_width, float(layer.height), 1.f);
                 out.small_region_threshold = scale_d(out.small_region_threshold * 0.5f);
                 ++ out.num_regions;
             }
@@ -1829,7 +1829,7 @@ std::vector<std::vector<ExPolygons>> multi_material_segmentation_by_painting(con
                             edge_grids[layer_idx].visit_cells_intersecting_line(line_to_test.a, line_to_test.b, visitor);
                         }
                     }
-                }); // end of parallel_for
+                }); // end of parallel_for 
             }
         }); // end of parallel_for
     }

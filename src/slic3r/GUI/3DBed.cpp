@@ -5,6 +5,7 @@
 #include "libslic3r/Polygon.hpp"
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/BoundingBox.hpp"
+#include "libslic3r/GCode/PostProcessor.hpp"
 #include "libslic3r/Geometry/Circle.hpp"
 #include "libslic3r/Tesselate.hpp"
 #include "libslic3r/PresetBundle.hpp"
@@ -24,7 +25,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 static const float GROUND_Z = -0.02f;
-static const std::array<float, 4> DEFAULT_GRID_COLOR = { 0.9f, 0.9, 0.9, 0.6f };
+static const std::array<float, 4> DEFAULT_GRID_COLOR = { 0.9f, 0.9f, 0.9f, 0.6f };
 static const std::array<float, 4> DEFAULT_MODEL_COLOR = { 0.235f, 0.235f, 0.235f, 1.0f };
 static const std::array<float, 4> PICKING_MODEL_COLOR = { 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -188,12 +189,12 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
 {
     auto check_texture = [](const std::string& texture) {
         boost::system::error_code ec; // so the exists call does not throw (e.g. after a permission problem)
-        return !texture.empty() && (boost::algorithm::iends_with(texture, ".png") || boost::algorithm::iends_with(texture, ".svg")) && boost::filesystem::exists(texture, ec);
+        return !texture.empty() && (boost::algorithm::iends_with(texture, ".png") || boost::algorithm::iends_with(texture, ".svg")) && boost::filesystem::exists(Slic3r::find_full_path(texture), ec);
     };
 
     auto check_model = [](const std::string& model) {
         boost::system::error_code ec;
-        return !model.empty() && boost::algorithm::iends_with(model, ".stl") && boost::filesystem::exists(model, ec);
+        return !model.empty() && boost::algorithm::iends_with(model, ".stl") && boost::filesystem::exists(Slic3r::find_full_path(model), ec);
     };
 
     Type type;
@@ -208,11 +209,12 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
         texture = system_texture;
         m_texture_with_grid = system_with_grid;
     }
-
     std::string texture_filename = custom_texture.empty() ? texture : custom_texture;
     if (! texture_filename.empty() && ! check_texture(texture_filename)) {
         BOOST_LOG_TRIVIAL(error) << "Unable to load bed texture: " << texture_filename;
         texture_filename.clear();
+    } else {
+
     }
 
     std::string model_filename = custom_model.empty() ? model : custom_model;
@@ -229,7 +231,9 @@ bool Bed3D::set_shape(const Pointfs& bed_shape, const double max_print_height, c
     m_type = type;
     m_build_volume = BuildVolume { bed_shape, max_print_height };
     m_texture_filename = texture_filename;
+    m_texture_path = Slic3r::find_full_path(m_texture_filename, m_texture_filename);
     m_model_filename = model_filename;
+    m_model_path = Slic3r::find_full_path(m_model_filename, m_model_filename);
     m_extended_bounding_box = this->calc_extended_bounding_box();
 
     ExPolygon poly{ Polygon::new_scale(bed_shape) };
@@ -423,16 +427,17 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas) const
         render_default(bottom, false);
         return;
     }
+    std::string texture_absolute_filename = m_texture_path.generic_string();
 
-    if (texture->get_id() == 0 || texture->get_source() != m_texture_filename) {
+    if (texture->get_id() == 0 || texture->get_source() != texture_absolute_filename) {
         texture->reset();
 
-        if (boost::algorithm::iends_with(m_texture_filename, ".svg")) {
+        if (boost::algorithm::iends_with(texture_absolute_filename, ".svg")) {
             // use higher resolution images if graphic card and opengl version allow
             GLint max_tex_size = OpenGLManager::get_gl_info().get_max_tex_size();
-            if (temp_texture->get_id() == 0 || temp_texture->get_source() != m_texture_filename) {
+            if (temp_texture->get_id() == 0 || temp_texture->get_source() != texture_absolute_filename) {
                 // generate a temporary lower resolution texture to show while no main texture levels have been compressed
-                if (!temp_texture->load_from_svg_file(m_texture_filename, false, false, false, max_tex_size / 8)) {
+                if (!temp_texture->load_from_svg_file(texture_absolute_filename, false, false, false, max_tex_size / 8)) {
                     render_default(bottom, false);
                     return;
                 }
@@ -440,15 +445,15 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas) const
             }
 
             // starts generating the main texture, compression will run asynchronously
-            if (!texture->load_from_svg_file(m_texture_filename, true, true, true, max_tex_size)) {
+            if (!texture->load_from_svg_file(texture_absolute_filename, true, true, true, max_tex_size)) {
                 render_default(bottom, false);
                 return;
             }
         } 
-        else if (boost::algorithm::iends_with(m_texture_filename, ".png")) {
+        else if (boost::algorithm::iends_with(texture_absolute_filename, ".png")) {
             // generate a temporary lower resolution texture to show while no main texture levels have been compressed
-            if (temp_texture->get_id() == 0 || temp_texture->get_source() != m_texture_filename) {
-                if (!temp_texture->load_from_file(m_texture_filename, false, GLTexture::None, false)) {
+            if (temp_texture->get_id() == 0 || temp_texture->get_source() != texture_absolute_filename) {
+                if (!temp_texture->load_from_file(texture_absolute_filename, false, GLTexture::None, false)) {
                     render_default(bottom, false);
                     return;
                 }
@@ -456,7 +461,7 @@ void Bed3D::render_texture(bool bottom, GLCanvas3D& canvas) const
             }
 
             // starts generating the main texture, compression will run asynchronously
-            if (!texture->load_from_file(m_texture_filename, true, GLTexture::MultiThreaded, true)) {
+            if (!texture->load_from_file(texture_absolute_filename, true, GLTexture::MultiThreaded, true)) {
                 render_default(bottom, false);
                 return;
             }
@@ -575,9 +580,11 @@ void Bed3D::render_model() const
     if (m_model_filename.empty())
         return;
 
+    std::string model_absolute_filename = m_model_path.generic_string();
+
     GLModel* model = const_cast<GLModel*>(&m_model);
 
-    if (model->get_filename() != m_model_filename && model->init_from_file(m_model_filename)) {
+    if (model->get_filename() != model_absolute_filename && model->init_from_file(model_absolute_filename)) {
         model->set_color(-1, DEFAULT_MODEL_COLOR);
 
         // move the model so that its origin (0.0, 0.0, 0.0) goes into the bed shape center and a bit down to avoid z-fighting with the texture quad

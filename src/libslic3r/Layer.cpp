@@ -5,6 +5,7 @@
 #include "ShortestPath.hpp"
 #include "SVG.hpp"
 #include "BoundingBox.hpp"
+#include "ExtrusionEntity.hpp"
 
 #include <boost/log/trivial.hpp>
 
@@ -183,7 +184,11 @@ void Layer::make_perimeters()
                 && ((config.gap_fill_speed          == other_config.gap_fill_speed) || !config.gap_fill_enabled)
                 && config.gap_fill_last             == other_config.gap_fill_last
                 && config.gap_fill_flow_match_perimeter == other_config.gap_fill_flow_match_perimeter
+                && config.gap_fill_extension         == other_config.gap_fill_extension
+                && config.gap_fill_max_width         == other_config.gap_fill_max_width
                 && config.gap_fill_min_area         == other_config.gap_fill_min_area
+                && config.gap_fill_min_length         == other_config.gap_fill_min_length
+                && config.gap_fill_min_width         == other_config.gap_fill_min_width
                 && config.gap_fill_overlap          == other_config.gap_fill_overlap
                 && config.infill_dense              == other_config.infill_dense
                 && config.infill_dense_algo         == other_config.infill_dense_algo
@@ -390,6 +395,17 @@ void Layer::export_region_fill_surfaces_to_svg_debug(const char *name) const
 {
     static size_t idx = 0;
     this->export_region_fill_surfaces_to_svg(debug_out_path("Layer-fill_surfaces-%s-%d.svg", name, idx ++).c_str());
+}
+
+void SupportLayer::simplify_support_extrusion_path() {
+    const PrintConfig& print_config = this->object()->print()->config();
+    const bool spiral_mode = print_config.spiral_vase;
+    const bool enable_arc_fitting = print_config.arc_fitting && !spiral_mode;
+    coordf_t scaled_resolution = scale_d(print_config.resolution.value);
+    if (scaled_resolution == 0) scaled_resolution = enable_arc_fitting ? SCALED_EPSILON * 2 : SCALED_EPSILON;
+
+    SimplifyVisitor visitor{ scaled_resolution , enable_arc_fitting, &print_config.arc_fitting_tolerance };
+    this->support_fills.visit(visitor);
 }
 
 BoundingBox get_extents(const LayerRegion &layer_region)

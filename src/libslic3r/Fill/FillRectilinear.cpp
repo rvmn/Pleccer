@@ -413,13 +413,15 @@ public:
         // for the infill pattern, don't cut the corners.
         // default miterLimt = 3
         //double miterLimit = 10.;
-        assert(aoffset1 < 0);
+        // FIXME: Resolve properly the cases when it is constructed with aoffset1 = 0 and aoffset2 = 0,
+        //        that is used in sample_grid_pattern() for Lightning infill.
+        // assert(aoffset1 < 0);
         assert(aoffset2 <= 0);
-        assert(aoffset2 == 0 || aoffset2 < aoffset1);
+        // assert(aoffset2 == 0 || aoffset2 < aoffset1);
 //        bool sticks_removed = 
         remove_sticks(polygons_src);
         //        if (sticks_removed) BOOST_LOG_TRIVIAL(error) << "Sticks removed!";
-        polygons_outer = offset(polygons_src, float(aoffset1), ClipperLib::jtMiter, miterLimit);
+        polygons_outer = aoffset1 == 0 ? polygons_src : offset(polygons_src, float(aoffset1), ClipperLib::jtMiter, miterLimit);
         if (aoffset2 < 0)
             polygons_inner = shrink(polygons_outer, float(aoffset1 - aoffset2), ClipperLib::jtMiter, miterLimit);
         // Filter out contours with zero area or small area, contours with 2 points only.
@@ -2937,7 +2939,9 @@ bool FillRectilinear::fill_surface_by_lines(const Surface *surface, const FillPa
         surface->expolygon, 
         - rotate_vector.first, 
         (scale_t(0 /*this->overlap*/ - /*(0.5 - INFILL_OVERLAP_OVER_SPACING)*/ 0.05 * this->get_spacing())), // outer offset, have to be > to the inner one (less negative)
-        (scale_t(0 /*this->overlap*/ - 0.48f * this->get_spacing()))); // inner offset (don't put 0.5, as it will cut full-filled area when it's exactly at the right place)
+        // inner offset (don't put 0.5, as it will cut full-filled area when it's exactly at the right place)
+        // Note: this will put the fill 2% too far into the perimeter.
+        (scale_t(0 /*this->overlap*/ - 0.48f * this->get_spacing())));
     if (poly_with_offset.n_contours_inner == 0) {
         // Not a single infill line fits.
         //Prusa: maybe one shall trigger the gap fill here?
@@ -3334,7 +3338,7 @@ FillRectilinearSawtooth::fill_surface_extrusion(const Surface *surface, const Fi
             if (!poly.is_valid()) continue;
 
             ExtrusionMultiPath3D *extrusions = new ExtrusionMultiPath3D();
-            extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.mm3_per_mm() * params.flow_mult, params.flow.width() * params.flow_mult, params.flow.height()));
+            extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.mm3_per_mm() * params.flow_mult, params.flow.width() * params.flow_mult, params.flow.height(), false));
             ExtrusionPath3D *current_extrusion = &(extrusions->paths.back());
             const Points &pts = poly.points;
             coord_t next_zhop = tooth_spacing_min + (coord_t)abs((rand() / (float)RAND_MAX) * (tooth_spacing_max - tooth_spacing_min));
@@ -3376,13 +3380,13 @@ FillRectilinearSawtooth::fill_surface_extrusion(const Surface *surface, const Fi
                     }
 
                     //add new extrusion that go up with nozzle_flow
-                    extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.nozzle_diameter() * params.flow.nozzle_diameter() * PI / 4, params.flow.nozzle_diameter(), params.flow.nozzle_diameter()));
+                    extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.nozzle_diameter() * params.flow.nozzle_diameter() * PI / 4, params.flow.nozzle_diameter(), params.flow.nozzle_diameter(), false));
                     current_extrusion = &(extrusions->paths.back());
                     current_extrusion->push_back(last, 0);
                     current_extrusion->push_back(last, tooth_zhop);
 
                     //add new extrusion that move a bit to let the place for the nozzle tip
-                    extrusions->paths.push_back(ExtrusionPath3D(good_role, 0, params.flow.nozzle_diameter() / 10, params.flow.nozzle_diameter() / 10));
+                    extrusions->paths.push_back(ExtrusionPath3D(good_role, 0, params.flow.nozzle_diameter() / 10, params.flow.nozzle_diameter() / 10, false));
                     current_extrusion = &(extrusions->paths.back());
                     //add first point
                     current_extrusion->push_back(last, tooth_zhop);
@@ -3392,7 +3396,7 @@ FillRectilinearSawtooth::fill_surface_extrusion(const Surface *surface, const Fi
                     current_extrusion->push_back(last, tooth_zhop);
 
                     // add new extrusion that go down with no nozzle_flow / sqrt(2)
-                    extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.mm3_per_mm() / std::sqrt(2), float(params.flow.width() / std::sqrt(2)), params.flow.height()));
+                    extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.mm3_per_mm() / std::sqrt(2), float(params.flow.width() / std::sqrt(2)), params.flow.height(), false));
                     current_extrusion = &(extrusions->paths.back());
                     current_extrusion->push_back(last, tooth_zhop);
                     //add next point at scaled_nozzle_diam distance
@@ -3401,7 +3405,7 @@ FillRectilinearSawtooth::fill_surface_extrusion(const Surface *surface, const Fi
                     current_extrusion->push_back(last, 0);
 
                     // now go back to normal flow
-                    extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.mm3_per_mm() * params.flow_mult, params.flow.width() * params.flow_mult, params.flow.height()));
+                    extrusions->paths.push_back(ExtrusionPath3D(good_role, params.flow.mm3_per_mm() * params.flow_mult, params.flow.width() * params.flow_mult, params.flow.height(), false));
                     current_extrusion = &(extrusions->paths.back());
                     //add first point
                     current_extrusion->push_back(last, 0);
@@ -3563,18 +3567,21 @@ FillRectilinearWGapFill::fill_surface_extrusion(const Surface *surface, const Fi
 
 }
 
-
-Points sample_grid_pattern(const ExPolygon &expolygon, coord_t spacing)
+// Lightning infill assumes that the distance between any two sampled points is always
+// at least equal to the value of spacing. To meet this assumption, we need to use
+// BoundingBox for whole layers instead of bounding box just around processing ExPolygon.
+// Using just BoundingBox around processing ExPolygon could produce two points closer
+// than spacing (in cases where two ExPolygon are closer than spacing).
+Points sample_grid_pattern(const ExPolygon &expolygon, coord_t spacing, const BoundingBox &global_bounding_box)
 {
     ExPolygonWithOffset poly_with_offset(expolygon, 0, 0, 0);
-    BoundingBox bounding_box = poly_with_offset.bounding_box_src();
 
     // we can use an empty FillPArams, as it's only used to get special x pos spacing from bridges or full infill
     std::vector<SegmentedIntersectionLine> segs = vert_lines_for_polygon(
-        poly_with_offset, 
-        poly_with_offset.bounding_box_src(),
-        (bounding_box.max.x() - bounding_box.min.x() + spacing - 1) / spacing,
-        bounding_box.min.x(),
+        poly_with_offset,
+        global_bounding_box,
+        (global_bounding_box.max.x() - global_bounding_box.min.x() + spacing - 1) / spacing,
+        global_bounding_box.min.x(),
         spacing);
     slice_region_by_vertical_lines(nullptr, segs, poly_with_offset);
 
@@ -3591,17 +3598,17 @@ Points sample_grid_pattern(const ExPolygon &expolygon, coord_t spacing)
     return out;
 }
 
-Points sample_grid_pattern(const ExPolygons &expolygons, coord_t spacing)
+Points sample_grid_pattern(const ExPolygons &expolygons, coord_t spacing, const BoundingBox &global_bounding_box)
 {
     Points out;
     for (const ExPolygon &expoly : expolygons)
-        append(out, sample_grid_pattern(expoly, spacing));
+        append(out, sample_grid_pattern(expoly, spacing, global_bounding_box));
     return out;
 }
 
-Points sample_grid_pattern(const Polygons &polygons, coord_t spacing)
+Points sample_grid_pattern(const Polygons &polygons, coord_t spacing, const BoundingBox &global_bounding_box)
 {
-    return sample_grid_pattern(union_ex(polygons), spacing);
+    return sample_grid_pattern(union_ex(polygons), spacing, global_bounding_box);
 }
 
 } // namespace Slic3r

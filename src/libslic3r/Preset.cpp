@@ -475,11 +475,19 @@ static std::vector<std::string> s_Preset_print_options {
         "avoid_crossing_not_first_layer",
         "thin_perimeters", "thin_perimeters_all",
         "overhangs_speed",
+        "overhangs_speed_enforce",
         "overhangs_width",
         "overhangs_width_speed", 
         "overhangs_reverse",
         "overhangs_reverse_threshold",
         "seam_position",
+        "seam_angle_cost",
+        "seam_notch_all",
+        "seam_notch_angle",
+        "seam_notch_inner",
+        "seam_notch_outer",
+        "seam_travel_cost",
+        "seam_visibility",
         // external_perimeters
         "external_perimeters_first",
         "external_perimeters_vase",
@@ -495,6 +503,7 @@ static std::vector<std::string> s_Preset_print_options {
         "bottom_fill_pattern",
         "solid_fill_pattern",
         "bridge_fill_pattern",
+        "overhang_fill_pattern",
         "infill_every_layers", "infill_only_where_needed", "solid_infill_every_layers",
         // ironing
         "ironing",
@@ -511,9 +520,7 @@ static std::vector<std::string> s_Preset_print_options {
         "infill_first",
         "overhang_infill_first",
         "avoid_crossing_perimeters_max_detour",
-#ifdef HAS_PRESSURE_EQUALIZER
         "max_volumetric_extrusion_rate_slope_positive", "max_volumetric_extrusion_rate_slope_negative", 
-#endif /* HAS_PRESSURE_EQUALIZER */
         "min_width_top_surface",
         // speeds
         "default_speed",
@@ -539,9 +546,13 @@ static std::vector<std::string> s_Preset_print_options {
         "max_volumetric_speed",
         // gapfill
         "gap_fill_enabled",
+        "gap_fill_extension",
         "gap_fill_flow_match_perimeter",
         "gap_fill_last",
+        "gap_fill_max_width",
         "gap_fill_min_area",
+        "gap_fill_min_length",
+        "gap_fill_min_width",
         "gap_fill_overlap",
         "gap_fill_speed",
         // fuzzy
@@ -579,6 +590,7 @@ static std::vector<std::string> s_Preset_print_options {
         "draft_shield",
         // brim
         "brim_inside_holes",
+        "brim_per_object",
         "brim_width",
         "brim_width_interior",
         "brim_ears",
@@ -594,11 +606,18 @@ static std::vector<std::string> s_Preset_print_options {
         "raft_first_layer_density", 
         "raft_first_layer_expansion",
         "raft_layers",
+        "overhang_distance",
+        "raft_layer_height", "raft_interface_layer_height",
+        "support_material_layer_height", "support_material_interface_layer_height",
         "support_material_pattern", "support_material_with_sheath", "support_material_spacing",
         "support_material_closing_radius", "support_material_style",
-        "support_material_synchronize_layers", "support_material_angle",
+        "support_material_synchronize_layers",
+        "support_material_angle",
+        "support_material_angle_height",
         "support_material_interface_layers", "support_material_bottom_interface_layers",
-        "support_material_interface_pattern",
+        "support_material_interface_pattern","minimal_support",
+        "support_material_interface_angle",
+        "support_material_interface_angle_increment",
         "support_material_interface_spacing",
         "support_material_interface_contact_loops",
         "support_material_contact_distance_type",
@@ -610,7 +629,6 @@ static std::vector<std::string> s_Preset_print_options {
         "print_custom_variables",
         "complete_objects",
         "complete_objects_one_skirt",
-        "complete_objects_one_brim",
         "complete_objects_sort",
         "extruder_clearance_radius", 
         "extruder_clearance_height", "gcode_comments", "gcode_label_objects", "output_filename_format", "post_process", "perimeter_extruder",
@@ -673,6 +691,7 @@ static std::vector<std::string> s_Preset_print_options {
         "seam_angle_cost",
         "seam_travel_cost",
         "infill_connection_bridge",
+        "infill_connection_overhang",
         "infill_connection", "infill_connection_solid", "infill_connection_top", "infill_connection_bottom",
         "first_layer_infill_speed",
         // thin wall
@@ -703,6 +722,9 @@ static std::vector<std::string> s_Preset_print_options {
         "milling_post_process",
         "milling_extra_size",
         "milling_speed",
+        //Arachne
+        "perimeter_generator", "wall_transition_length", "wall_transition_filter_deviation", "wall_transition_angle",
+        "wall_distribution_count", "min_feature_size", "min_bead_width"
 };
 
 static std::vector<std::string> s_Preset_filament_options {
@@ -771,6 +793,8 @@ static std::vector<std::string> s_Preset_machine_limits_options {
 };
 
 static std::vector<std::string> s_Preset_printer_options {
+	"arc_fitting",
+    "arc_fitting_tolerance",
     "printer_technology",
     "bed_shape", "bed_custom_texture", "bed_custom_model", "z_offset", "init_z_rotate",
     "fan_kickstart",
@@ -906,7 +930,7 @@ static std::vector<std::string> s_Preset_sla_printer_options {
     "display_width", "display_height", "display_pixels_x", "display_pixels_y",
     "display_mirror_x", "display_mirror_y",
     "display_orientation",
-    "fast_tilt_time", "slow_tilt_time", "area_fill",
+    "fast_tilt_time", "slow_tilt_time", "high_viscosity_tilt_time", "area_fill",
     "relative_correction",
     "relative_correction_x",
     "relative_correction_y",
@@ -1786,6 +1810,7 @@ static std::vector<std::string> s_PhysicalPrinter_opts {
     "printhost_apikey",
     "printhost_cafile",
     "printhost_client_cert",
+    "printhost_client_cert_password",
     "printhost_port",
     "printhost_authorization_type",
     // HTTP digest authentization (RFC 2617)
@@ -1832,14 +1857,15 @@ const std::set<std::string>& PhysicalPrinter::get_preset_names() const
 
 bool PhysicalPrinter::has_empty_config() const
 {
-    return  config.opt_string("print_host"        ).empty() &&
-            config.opt_string("printhost_apikey"  ).empty() &&
-            config.opt_string("printhost_cafile"  ).empty() &&
-            config.opt_string("printhost_client_cert").empty() && 
-            config.opt_string("printhost_port"    ).empty() &&
-            config.opt_string("printhost_user"    ).empty() &&
-            config.opt_string("printhost_password").empty() && 
-            config.opt_string("printhost_port"    ).empty();
+    return  config.opt_string("print_host"                      ).empty() &&
+            config.opt_string("printhost_apikey"                ).empty() &&
+            config.opt_string("printhost_cafile"                ).empty() &&
+            config.opt_string("printhost_client_cert"           ).empty() && 
+            config.opt_string("printhost_client_cert_password"  ).empty() && 
+            config.opt_string("printhost_port"                  ).empty() &&
+            config.opt_string("printhost_user"                  ).empty() &&
+            config.opt_string("printhost_password"              ).empty() && 
+            config.opt_string("printhost_port"                  ).empty();
 }
 
 // temporary workaround for compatibility with older Slicer

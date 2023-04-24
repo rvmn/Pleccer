@@ -1069,6 +1069,13 @@ void reorder_extrusion_paths(std::vector<ExtrusionPath> &extrusion_paths, const 
         if (idx.second)
 			out.back().reverse();
     }
+    //FIXME: TODO: find the real cause inside chain_extrusion_paths
+    // for now on, jsut verify & patch that
+    if (out.size() > 1
+        && !out.front().last_point().coincides_with_epsilon(out[1].first_point())
+        && out.front().first_point().coincides_with_epsilon(out[1].first_point())) {
+        out.front().reverse();
+    }
     extrusion_paths.swap(out);
 }
 

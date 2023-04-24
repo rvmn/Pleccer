@@ -461,6 +461,7 @@ namespace Slic3r {
 
         bool load_model_from_file(const std::string& filename, Model& model, DynamicPrintConfig& config, ConfigSubstitutionContext& config_substitutions, bool check_version);
         unsigned int version() const { return m_version; }
+        boost::optional<Semver> prusaslicer_generator_version() const { return m_prusaslicer_generator_version; }
 
     private:
         void _destroy_xml_parser();
@@ -3383,8 +3384,7 @@ bool _3MF_Exporter::_add_custom_gcode_per_print_z_file_to_archive( mz_zip_archiv
 }
 
 // Perform conversions based on the config values available.
-//FIXME provide a version of PrusaSlicer that stored the project file (3MF).
-static void handle_legacy_project_loaded(unsigned int version_project_file, DynamicPrintConfig& config)
+static void handle_legacy_project_loaded(unsigned int version_project_file, DynamicPrintConfig& config, const boost::optional<Semver>& prusaslicer_generator_version)
 {
     // SuSi: don't do that. It's hidden behavior.
     //if (! config.has("brim_separation")) {
@@ -3392,6 +3392,22 @@ static void handle_legacy_project_loaded(unsigned int version_project_file, Dyna
     //        // Conversion from older PrusaSlicer which applied brim separation equal to elephant foot compensation.
     //        auto *opt_brim_separation = config.option<ConfigOptionFloat>("brim_separation", true);
     //        opt_brim_separation->value = -opt_elephant_foot->value;
+    //    }
+    //}
+    //// In PrusaSlicer 2.5.0-alpha2 and 2.5.0-alpha3, we introduce several parameters for Arachne that depend
+    //// on nozzle size . Later we decided to make default values for those parameters computed automatically
+    //// until the user changes them.
+    //if (prusaslicer_generator_version && *prusaslicer_generator_version >= *Semver::parse("2.5.0-alpha2") && *prusaslicer_generator_version <= *Semver::parse("2.5.0-alpha3")) {
+    //    if (auto *opt_wall_transition_length = config.option<ConfigOptionFloatOrPercent>("wall_transition_length", false);
+    //        opt_wall_transition_length && !opt_wall_transition_length->percent && opt_wall_transition_length->value == 0.4) {
+    //        opt_wall_transition_length->percent = true;
+    //        opt_wall_transition_length->value   = 100;
+    //    }
+
+    //    if (auto *opt_min_feature_size = config.option<ConfigOptionFloatOrPercent>("min_feature_size", false);
+    //        opt_min_feature_size && !opt_min_feature_size->percent && opt_min_feature_size->value == 0.1) {
+    //        opt_min_feature_size->percent = true;
+    //        opt_min_feature_size->value   = 25;
     //    }
     //}
 }
@@ -3438,7 +3454,7 @@ bool load_3mf(const char* path, DynamicPrintConfig& config, ConfigSubstitutionCo
     _3MF_Importer         importer;
     bool res = importer.load_model_from_file(path, *model, config, config_substitutions, check_version);
     importer.log_errors();
-    handle_legacy_project_loaded(importer.version(), config);
+    handle_legacy_project_loaded(importer.version(), config, importer.prusaslicer_generator_version());
     return res;
 }
 

@@ -80,7 +80,7 @@ namespace Slic3r {
             //get the role
             ExtrusionRole good_role = params.role;
             if (good_role == erNone || good_role == erCustom) {
-                good_role = params.flow.bridge() && idx == 0 ? erBridgeInfill : rolePass[idx];
+                good_role = params.flow.bridge() && idx == 0 ? srf_to_fill.is_overhang? erOverhangInfill: erBridgeInfill : rolePass[idx];
             }
             //get the flow
             float mult_flow = 1;

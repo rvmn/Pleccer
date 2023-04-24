@@ -99,6 +99,7 @@ OctoPrint::OctoPrint(DynamicPrintConfig *config) :
     m_apikey(config->opt_string("printhost_apikey")),
     m_cafile(config->opt_string("printhost_cafile")),
     m_client_cert(config->opt_string("printhost_client_cert")),
+    m_client_cert_password(config->opt_string("printhost_client_cert_password")),
     m_ssl_revoke_best_effort(config->opt_bool("printhost_ssl_ignore_revoke"))
 {}
 
@@ -273,12 +274,12 @@ void OctoPrint::set_auth(Http &http) const
 {
     http.header("X-Api-Key", m_apikey);
 
-    if (!m_cafile.empty()) {
-        http.ca_file(m_cafile);
+    if (!get_cafile().empty()) {
+        http.ca_file(get_cafile());
     }
 
-    if (! m_client_cert.empty()) {
-        http.client_cert(m_client_cert);
+    if (! get_client_cert().empty()) {
+        http.client_cert(get_client_cert(), get_client_cert_password());
     }
 }
 
@@ -373,8 +374,8 @@ void SL1Host::set_auth(Http &http) const
         http.ca_file(get_cafile());
     }
 
-    if (! get_client_cert().empty()) {
-        http.client_cert(get_client_cert());
+    if (!get_client_cert().empty()) {
+        http.client_cert(get_client_cert(), get_client_cert_password());
     }
 }
 
@@ -422,7 +423,7 @@ void PrusaLink::set_auth(Http& http) const
     }
 
     if (! get_client_cert().empty()) {
-        http.client_cert(get_client_cert());
+        http.client_cert(get_client_cert(), get_client_cert_password());
     }
 }
 
