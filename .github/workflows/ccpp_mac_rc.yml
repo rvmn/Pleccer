@@ -20,9 +20,18 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_macos.app
-        path: build/pack/SuperSlicer/SuperSlicer.app
+        path: build/pack/SuperPleccer/SuperPleccer.app
     - name: Upload artifact
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_macos.dmg
-        path: build/SuperSlicer.dmg
+        path: build/SuperPleccer.dmg
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_name: SuperPleccer-${{ matrix.config.os }}
+        asset_path: build/SuperPleccer.dmg
+        asset_content_type: application/octet-stream

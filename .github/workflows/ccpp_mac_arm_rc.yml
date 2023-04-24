@@ -20,4 +20,13 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_arm_macos.tar
-        path: build/SuperSlicer.tar
+        path: build/SuperPleccer.tar
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_name: SuperPleccer-${{ matrix.config.os }}
+        asset_path: build/SuperPleccer.tar
+        asset_content_type: application/octet-stream
