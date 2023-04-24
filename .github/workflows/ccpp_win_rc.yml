@@ -118,5 +118,5 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_name: SuperPleccer-${{ matrix.config.os }}
-        asset_path: build/nightly.zip
+        asset_path: build/package/
         asset_content_type: application/octet-stream
