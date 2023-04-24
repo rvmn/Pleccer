@@ -37,12 +37,12 @@ jobs:
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc_linux_gtk2.tar
-        path: build/SuperSlicer.tar
+        path: build/SuperPleccer.tar
     - name: Upload appimage
       uses: actions/upload-artifact@v1.0.0
       with:
         name: rc-${{ github.event.repository.name }}-gtk2.AppImage
-        path: build/SuperSlicer_ubu64.AppImage
+        path: build/SuperPleccer_ubu64.AppImage
     - name: Upload release assets
       uses: actions/upload-release-asset@v1
       env:
@@ -50,5 +50,5 @@ jobs:
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
         asset_name: SuperPleccer-${{ matrix.config.os }}
-        asset_path: build/SuperSlicer_ubu64.AppImage
+        asset_path: build/SuperPleccer_ubu64.AppImage
         asset_content_type: application/octet-stream
