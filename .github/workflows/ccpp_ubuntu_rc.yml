@@ -49,6 +49,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_name: SuperPleccer-${{ matrix.config.os }}
+        asset_name: SuperPleccer-${{ runner.os }}
         asset_path: build/SuperPleccer_ubu64.AppImage
         asset_content_type: application/octet-stream
