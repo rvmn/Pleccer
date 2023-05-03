@@ -4857,7 +4857,7 @@ std::string GCode::extrude_infill(const Print& print, const std::vector<ObjectBy
                 break;
             }
         if (!region.infills.empty() &&
-            ((overhang_infill_first && m_region->config().overhang_infill_first == is_infill_first) || !m_region->config().overhang_infill_first && m_region->config().infill_first == is_infill_first)) {
+           ((overhang_infill_first && m_region->config().overhang_infill_first == is_infill_first) || !m_region->config().overhang_infill_first == overhang_infill_first && m_region->config().infill_first == is_infill_first)) {
             m_config.apply(m_region->config());
             m_writer.apply_print_region_config(m_region->config());
             if (m_config.print_temperature > 0)
