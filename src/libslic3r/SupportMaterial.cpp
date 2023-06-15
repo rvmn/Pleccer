@@ -1564,7 +1564,7 @@ static inline std::tuple<Polygons, Polygons, Polygons, float> detect_overhangs(
         for (LayerRegion *layerm : layer.regions()) {
             bool hasOverhang = false;
             for(const Surface &surface: layerm->fill_surfaces)
-                if(layerm->region().config().overhang_fill_pattern == ipArc && surface.is_overhang && !layerm->is_bridge) hasOverhang = true;
+                if((uint8_t)layerm->region().config().overhang_fill_pattern == (uint8_t)ipArc && surface.is_overhang && !layerm->is_bridge) hasOverhang = true;
             if ((hasOverhang && layer.object()->config().dont_support_bridges)) continue;
 
             // Extrusion width accounts for the roundings of the extrudates.
