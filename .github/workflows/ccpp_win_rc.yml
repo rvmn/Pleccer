@@ -3,7 +3,7 @@ name: C/C++ Release candidate windows x64
 on:
   push:
     branches:
-      - rc, master
+      - rc
 
 jobs:
   build_dep:
@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: 'rc'
+        ref: 'master'
     - uses: ilammy/msvc-dev-cmd@v1
     - name: mkdir in deps
       run: mkdir deps/build
