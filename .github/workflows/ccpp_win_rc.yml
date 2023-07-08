@@ -3,7 +3,7 @@ name: C/C++ Release candidate windows x64
 on:
   push:
     branches:
-      - rc
+      - rc, master
 
 jobs:
   build_dep:
