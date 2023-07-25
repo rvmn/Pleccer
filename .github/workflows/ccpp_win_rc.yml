@@ -19,6 +19,7 @@ jobs:
     - name: cmake and make deps
       working-directory: ./deps/build
       run: |
+        pip install numpy
         cmake .. -G "Visual Studio 16 2019" -A x64
         msbuild /m ALL_BUILD.vcxproj
     - name: Upload artifact
