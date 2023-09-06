@@ -477,7 +477,7 @@ include_directories(BEFORE SYSTEM ${EIGEN3_INCLUDE_DIR})
 # Find expat or use bundled version
 # Always use the system libexpat on Linux.
 
-find_package(EXPAT)
+find_package(EXPAT REQUIRED)
 
 if (NOT EXPAT_FOUND)
     add_library(expat STATIC
