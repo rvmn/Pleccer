@@ -12,44 +12,96 @@ jobs:
     runs-on: windows-2019
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: ilammy/msvc-dev-cmd@v1
-      - name: Install perl
-        run: |
-          choco install strawberryperl
-      - run: mkdir ${{ github.workspace }}/deps/build
-      - name: download deps
-        shell: powershell
-        run: '(new-object System.Net.WebClient).DownloadFile("https://plec.it/wp-content/uploads/PrusaSlicer-deps.zip", "$env:temp\PrusaSlicer-deps.zip")'
-      - name: extract deps
-        working-directory: ${{ github.workspace }}/deps/build
-        shell: cmd
-        run: '"C:/Program Files/7-Zip/7z.exe" x %temp%\PrusaSlicer-deps.zip'
-
-      - run: dir "${{ github.workspace }}\deps\build\"
-      # - name: build deps
-      #   id: cache_deps
-      #   uses: actions/cache@v3
-      #   env:
-      #     cache-name: ${{ runner.os }}-cache-PrusaSlicer-deps
-      #   with:
-      #     path: ${{ github.workspace }}/deps/build/PrusaSlicer_deps
-      #     key: ${{ runner.os }}-build-${{ env.cache-name }}
-
-      # - if: ${{ steps.cache_deps.outputs.cache-hit != 'true' }}
-      #   name: build deps
-      #   working-directory: ${{ github.workspace }}
-      #   continue-on-error: true
-      #   run: .\build_release.bat deps
-   
-      # - run:  Get-ChildItem ${{ github.workspace }}/deps/build/ -Exclude PrusaSlicer_deps | Remove-Item -Recurse -Force
-
-      - name: Build studio
-        working-directory: ${{ github.workspace }}
-        run: .\build_win.bat -d=.\deps\build\PrusaSlicer-deps -c=Release -s=app
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: SuperPleccer_Win64_rc
-          path: ${{ github.workspace }}/build/src/Release
+        - uses: actions/checkout@v3
+        - uses: ilammy/msvc-dev-cmd@v1
+        - name: Install perl
+          run: |
+              choco install strawberryperl
+        - run: mkdir ${{ github.workspace }}/deps/build
+        - name: download deps
+          shell: powershell
+          run: '(new-object System.Net.WebClient).DownloadFile("https://plec.it/wp-content/uploads/PrusaSlicer-deps.zip", "$env:temp\PrusaSlicer-deps.zip")'
+        - name: extract deps
+          working-directory: ${{ github.workspace }}/deps/build
+          shell: cmd
+          run: '"C:/Program Files/7-Zip/7z.exe" x %temp%\PrusaSlicer-deps.zip'
+        - run: dir "${{ github.workspace }}\deps\build\"
+        - name: mkdir
+          run: mkdir build
+        - name: cmake
+          working-directory: ./build
+          run: cmake .. -G "Visual Studio 16 2019" -A x64 -DwxUSE_EXPAT="builtin" -DCMAKE_PREFIX_PATH="d:\a\${{ github.event.repository.name }}\${{ github.event.repository.name }}\deps\build\PrusaSlicer-deps\usr\local"
+        - name: make
+          working-directory: ./build
+          run: msbuild /m /P:Configuration=Release INSTALL.vcxproj
+        - name: make .mo
+          working-directory: ./build
+          run: msbuild /m /P:Configuration=Release gettext_po_to_mo.vcxproj
+        - name: make .pot
+          working-directory: ./build
+          run: msbuild /m /P:Configuration=Release gettext_make_pot.vcxproj
+        - name: create directory and copy into it
+          working-directory: ./build
+          run: ls
+        - name: create directory and copy into it
+          working-directory: ./build
+          shell: powershell
+            #todo: add the opengl folder
+          run: mkdir package
+        - name: copy from release
+          working-directory: ./build
+          shell: powershell
+          run: '(new-object System.Net.WebClient).DownloadFile("https://github.com/supermerill/SuperSlicer_deps/releases/download/1.75/Slic3r_win_build.zip", "Slic3r_win_build.zip")'
+        - name: unzip
+          working-directory: ./build
+          shell: cmd
+          run: '"C:/Program Files/7-Zip/7z.exe" x Slic3r_win_build.zip'
+        - name: copy missing dll content from old release
+          working-directory: ./build
+          shell: cmd
+          run: |
+            xcopy /RCYIE Slic3r_win_build\*.dll package\
+            xcopy /RCYIE Slic3r_win_build\local-settings.bat package\${{ github.event.repository.name }}_local-settings.bat
+            xcopy /RCYIE Slic3r_win_build\mesa package\
+        - name: copy new resources
+          working-directory: ./build
+          shell: cmd
+          run: |
+            xcopy /RCYIE ..\resources package\resources
+            del /S /Q package\resources\localization\*.so
+        - name: copy dll & exe
+          working-directory: ./build
+          shell: cmd
+          run: |
+            xcopy /RCYIE src\release\*.dll package\
+            xcopy /RCYIE src\release\*.exe package\
+            xcopy /RCYIE c:\windows\system32\VCRUNTIME140* package\
+            del package\opengl32.dll
+        #    - name: create zip
+        #      working-directory: ./build
+        #      shell: cmd
+        #      run: '"C:/Program Files/7-Zip/7z.exe" a -tzip nightly.zip *'
+        - name: Upload artifact
+          uses: actions/upload-artifact@v1.0.0
+          with:
+            name: rc_win64
+            path: build/package/
+        - name: Create Release
+          id: create_release
+          uses: actions/create-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: ${{ github.ref }}
+            release_name: Release ${{ github.ref }}
+            draft: false
+            prerelease: false
+        - name: Upload release assets
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_name: SuperPleccer-${{ runner.os }}
+            asset_path: build/package/
+            asset_content_type: application/octet-stream
