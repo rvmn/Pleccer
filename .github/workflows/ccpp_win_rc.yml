@@ -29,9 +29,14 @@ jobs:
           shell: powershell
           run: '(new-object System.Net.WebClient).DownloadFile("https://github.com/supermerill/SuperSlicer_deps/releases/download/1.75/Slic3r_win_build.zip", "$env:temp\Slic3r_win_build.zip")'
         - name: unzip
-          working-directory: ${{ github.workspace }}/deps/build/PrusaSlicer-deps/
+          working-directory: ${{ github.workspace }}/deps/build/
           shell: cmd
           run: '"C:/Program Files/7-Zip/7z.exe" x  %temp%\Slic3r_win_build.zip'
+        - name: copy missing dll content from old release
+          working-directory:  ${{ github.workspace }}/deps/build/
+          shell: cmd
+          run: |
+            xcopy /RCYIE Slic3r_win_build\** PrusaSlicer-deps\
         - run: dir "${{ github.workspace }}\deps\build\PrusaSlicer-deps"
         - name: mkdir
           run: mkdir build
