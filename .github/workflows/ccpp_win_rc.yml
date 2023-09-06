@@ -26,7 +26,6 @@ jobs:
           shell: cmd
           run: '"C:/Program Files/7-Zip/7z.exe" x %temp%\PrusaSlicer-deps.zip'
         - name: copy from release
-          working-directory: ./build
           shell: powershell
           run: '(new-object System.Net.WebClient).DownloadFile("https://github.com/supermerill/SuperSlicer_deps/releases/download/1.75/Slic3r_win_build.zip", "$env:temp\Slic3r_win_build.zip")'
         - name: unzip
