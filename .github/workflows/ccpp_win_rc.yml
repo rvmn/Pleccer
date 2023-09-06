@@ -56,7 +56,7 @@ jobs:
       run: mkdir build
     - name: cmake
       working-directory: ./build
-      run: cmake .. -G "Visual Studio 16 2019" -A x64 -DwxUSE_EXPAT -DCMAKE_PREFIX_PATH="d:\a\${{ github.event.repository.name }}\${{ github.event.repository.name }}\deps\destdir\usr\local"
+      run: cmake .. -G "Visual Studio 16 2019" -A x64 -DwxUSE_EXPAT="builtin" -DCMAKE_PREFIX_PATH="d:\a\${{ github.event.repository.name }}\${{ github.event.repository.name }}\deps\destdir\usr\local"
     - name: make
       working-directory: ./build
       run: msbuild /m /P:Configuration=Release INSTALL.vcxproj
