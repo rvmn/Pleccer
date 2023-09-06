@@ -23,15 +23,6 @@ else()
         endif()
 endif()
 
-if(NOT WIN32)
-    # Add DEBUG flags to debug builds.
-    # Also add -g to RELWITHDEBINFO on non-win32
-    set(_CC_DEBUG_FLAGS $<$<CONFIG:DEBUG>:-DwxDEBUG_LEVEL=1>
-                        $<$<CONFIG:DEBUG>:-g>
-                        $<$<CONFIG:RELWITHDEBINFO>:-g>
-    )
-endif()
-
 option(SLIC3R_STATIC 			"Compile Slic3r with static libraries (Boost, TBB, glew)" ${SLIC3R_STATIC_INITIAL})
 option(SLIC3R_GUI    			"Compile Slic3r with GUI components (OpenGL, wxWidgets)" 1)
 option(SLIC3R_FHS               "Assume Slic3r is to be installed in a FHS directory structure" 0)
@@ -58,6 +49,12 @@ if (APPLE)
     if (CMAKE_OSX_ARCHITECTURES AND _arch_idx LESS 0)
         set(IS_CROSS_COMPILE TRUE)
     endif ()
+    if (CMAKE_MACOSX_BUNDLE)
+        set(CMAKE_INSTALL_RPATH @executable_path/../Frameworks)
+    endif()
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.3" CACHE STRING "Minimum OS X deployment version" FORCE)
+    SET(CMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.softfever3d.orca-slicer")
+
 endif ()
 
 # Proposal for C++ unit tests and sandboxes
@@ -121,7 +118,7 @@ if (MINGW)
 endif ()
 
 if (NOT MSVC)
-    # ARMs (Raspberry PI) use an unsigned char by default. Let's make it consistent for PrusaSlicer on all platforms.
+    # ARMs (Raspberry PI) use an unsigned char by default. Let's make it consistent for Slic3r on all platforms.
     add_compile_options(-fsigned-char)
 endif ()
 
@@ -145,12 +142,19 @@ endforeach ()
 
 # Add our own cmake module path.
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules/)
+message(STATUS "PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 enable_testing ()
 
 # Enable C++17 language standard.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(NOT WIN32)
+    # Add DEBUG flags to debug builds.
+    add_compile_options("$<$<CONFIG:DEBUG>:-DDEBUG>")
+endif()
 
 # To be able to link libslic3r with the Perl XS module.
 # Once we get rid of Perl and libslic3r is linked statically, we can get rid of -fPIC
@@ -165,35 +169,23 @@ if(WIN32)
         endif()
     endif()
     if(DEFINED WIN10SDK_PATH)
-        if (EXISTS "${WIN10SDK_PATH}/include/winrt/windows.graphics.printing3d.h")
-            set(WIN10SDK_INCLUDE_PATH "${WIN10SDK_PATH}/Include")
+        #BBS: modify win10sdk_path
+        if (EXISTS "${WIN10SDK_PATH}/winrt/windows.graphics.printing3d.h")
+            set(WIN10SDK_INCLUDE_PATH "${WIN10SDK_PATH}")
         else()
             message("WIN10SDK_PATH is invalid: ${WIN10SDK_PATH}")
-            message("${WIN10SDK_PATH}/include/winrt/windows.graphics.printing3d.h was not found")
+            message("${WIN10SDK_PATH}/winrt/windows.graphics.printing3d.h was not found")
             message("STL fixing by the Netfabb service will not be compiled")
             unset(WIN10SDK_PATH)
         endif()
     else()
         # Try to use the default Windows 10 SDK path.
-        if(NOT DEFINED ENV{WindowsSdkDir})
-            message("Env var 'WindowsSdkDir' not defined, trying to use location on 'C:/Program Files (x86)/Windows Kits/10' and version '${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}' for it.")
-			set(CMAKE_WINDOWS_KITS_10_DIR "C:/Program Files (x86)/Windows Kits/10")
-            set(WIN10SDK_PATH "${CMAKE_WINDOWS_KITS_10_DIR}")
-			set(WIN10SDK_INCLUDE_PATH "${CMAKE_WINDOWS_KITS_10_DIR}/Include/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
-			link_directories(${CMAKE_WINDOWS_KITS_10_DIR}/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um/x64)
-			if (NOT EXISTS "${WIN10SDK_INCLUDE_PATH}/winrt/windows.graphics.printing3d.h")
-				message("${WIN10SDK_INCLUDE_PATH}/winrt/windows.graphics.printing3d.h was not found")
-				message("STL fixing by the Netfabb service will not be compiled")
-				unset(WIN10SDK_INCLUDE_PATH)
-			endif()
-        else()
-			set(WIN10SDK_INCLUDE_PATH "$ENV{WindowsSdkDir}/Include/$ENV{WindowsSDKVersion}")
-			if (NOT EXISTS "${WIN10SDK_INCLUDE_PATH}/winrt/windows.graphics.printing3d.h")
-				message("${WIN10SDK_INCLUDE_PATH}/winrt/windows.graphics.printing3d.h was not found")
-				message("STL fixing by the Netfabb service will not be compiled")
-				unset(WIN10SDK_INCLUDE_PATH)
-			endif()
-		endif()
+        set(WIN10SDK_INCLUDE_PATH "$ENV{WindowsSdkDir}/Include/$ENV{WindowsSDKVersion}")
+        if (NOT EXISTS "${WIN10SDK_INCLUDE_PATH}/winrt/windows.graphics.printing3d.h")
+            message("${WIN10SDK_INCLUDE_PATH}/winrt/windows.graphics.printing3d.h was not found")
+            message("STL fixing by the Netfabb service will not be compiled")
+            unset(WIN10SDK_INCLUDE_PATH)
+        endif()
     endif()
     if(WIN10SDK_INCLUDE_PATH)
         message("Building with Win10 Netfabb STL fixing service support")
@@ -288,20 +280,30 @@ if (APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=partial-availability -Werror=unguarded-availability -Werror=unguarded-availability-new")
 endif ()
 
+if(MSVC)
+# 添加编译选项，忽略警告 C4305 （格式转换截断）
+add_compile_options(/wd4305)
+endif()
+
 # Where all the bundled libraries reside?
 set(LIBDIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(LIBDIR_BIN ${CMAKE_CURRENT_BINARY_DIR}/src)
+message(STATUS "LIBDIR: ${LIBDIR}")
+message(STATUS "LIBDIR_BIN: ${LIBDIR_BIN}")
+
 # For the bundled boost libraries (boost::nowide)
 include_directories(${LIBDIR})
 # For generated header files
 include_directories(${LIBDIR_BIN}/platform)
+# For ligigl
+include_directories(${LIBDIR}/libigl)
 
 if(WIN32)
     add_definitions(-D_USE_MATH_DEFINES -D_WIN32 -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
     if(MSVC)
         # BOOST_ALL_NO_LIB: Avoid the automatic linking of Boost libraries on Windows. Rather rely on explicit linking.
         add_definitions(-DBOOST_ALL_NO_LIB -DBOOST_USE_WINAPI_VERSION=0x601 -DBOOST_SYSTEM_USE_UTF8 )
-        # Force the source code encoding to UTF-8. See PrusaSlicer GH pull request #5583
+        # Force the source code encoding to UTF-8. See Slic3r GH pull request #5583
         add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
         add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
     endif(MSVC)
@@ -317,19 +319,29 @@ if (SLIC3R_PROFILE)
     add_definitions(-DSLIC3R_PROFILE)
 endif ()
 
-# Disable optimization even with debugging on.
-if (0)
-    message(STATUS "Perl compiled without optimization. Disabling optimization for the Slic3r build.")
-    message("Old CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-    message("Old CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELEASE}")
-    message("Old CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS_RELEASE}")
-    set(CMAKE_CXX_FLAGS_RELEASE "/MD /Od /Zi /EHsc /DWIN32 /DTBB_USE_ASSERT")
-    set(CMAKE_C_FLAGS_RELEASE "/MD /Od /Zi /DWIN32 /DTBB_USE_ASSERT")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MD /Od /Zi /EHsc /DWIN32 /DTBB_USE_ASSERT")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "/MD /Od /Zi /DWIN32 /DTBB_USE_ASSERT")
-    set(CMAKE_CXX_FLAGS "/MD /Od /Zi /EHsc /DWIN32 /DTBB_USE_ASSERT")
-    set(CMAKE_C_FLAGS "/MD /Od /Zi /DWIN32 /DTBB_USE_ASSERT")
+# Disable optimization for RelWithDebInfo
+if(CMAKE_C_FLAGS_RELWITHDEBINFO MATCHES "/O2")
+    string(REGEX REPLACE "/O2" "/Od" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 endif()
+
+if(CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES "/O2")
+    string(REGEX REPLACE "/O2" "/Od" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
+
+if(MSVC)
+    if(CMAKE_C_FLAGS_RELWITHDEBINFO MATCHES "/Ob1")
+        string(REGEX REPLACE "/Ob1" "/Ob0" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    endif()
+    if(CMAKE_CXX_FLAGS_RELWITHDEBINFO MATCHES "/Ob1")
+        string(REGEX REPLACE "/Ob1" "/Ob0" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    endif()
+
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /RTC1")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /RTC1")
+endif()
+
+list(REMOVE_DUPLICATES CMAKE_C_FLAGS_RELWITHDEBINFO)
+list(REMOVE_DUPLICATES CMAKE_CXX_FLAGS_RELWITHDEBINFO)
 
 # Find and configure boost
 if(SLIC3R_STATIC)
@@ -345,10 +357,6 @@ endif()
 set(MINIMUM_BOOST_VERSION "1.66.0")
 set(_boost_components "system;filesystem;thread;log;locale;regex;chrono;atomic;date_time;iostreams")
 find_package(Boost ${MINIMUM_BOOST_VERSION} REQUIRED COMPONENTS ${_boost_components})
-# boost compile only in release & debug. We have to force the release version for RELWITHDEBINFO compilation
-if (MSVC)
-  set_target_properties(${Boost_LIBRARIES} PROPERTIES MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
-endif()
 
 add_library(boost_libs INTERFACE)
 add_library(boost_headeronly INTERFACE)
@@ -402,8 +410,8 @@ if(SLIC3R_STATIC)
     set(TBB_STATIC 1)
 endif()
 set(TBB_DEBUG 1)
+set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO RelWithDebInfo Release "")
 find_package(TBB REQUIRED)
-slic3r_remap_configs(TBB::tbb RelWithDebInfo Release)
 # include_directories(${TBB_INCLUDE_DIRS})
 # add_definitions(${TBB_DEFINITIONS})
 # if(MSVC)
@@ -413,19 +421,29 @@ slic3r_remap_configs(TBB::tbb RelWithDebInfo Release)
 # The Intel TBB library will use the std::exception_ptr feature of C++11.
 # add_definitions(-DTBB_USE_CAPTURED_EXCEPTION=0)
 
+find_package(OpenSSL REQUIRED)
+if (APPLE)
+find_package(CURL CONFIG REQUIRED)
+else()
 find_package(CURL REQUIRED)
+endif()
 
 add_library(libcurl INTERFACE)
 target_link_libraries(libcurl INTERFACE CURL::libcurl)
 
+find_package(ZLIB REQUIRED)
+target_link_libraries(libcurl INTERFACE ZLIB::ZLIB)
+
 # Fixing curl's cmake config script bugs
-#if (NOT WIN32)
+if (NOT WIN32)
     # Required by libcurl
-    find_package(ZLIB REQUIRED)
-    target_link_libraries(libcurl INTERFACE ZLIB::ZLIB)
-#else()
-#    target_link_libraries(libcurl INTERFACE crypt32)
-#endif()
+    #find_package(ZLIB REQUIRED)
+    #target_link_libraries(libcurl INTERFACE ZLIB::ZLIB)
+    #find_package(Libssh2 REQUIRED)
+    #target_link_libraries(libcurl INTERFACE Libssh2::libssh2)
+else()
+    target_link_libraries(libcurl INTERFACE crypt32)
+endif()
 
 if (SLIC3R_STATIC AND NOT SLIC3R_STATIC_EXCLUDE_CURL)
     if (NOT APPLE)
@@ -459,14 +477,17 @@ include_directories(BEFORE SYSTEM ${EIGEN3_INCLUDE_DIR})
 # Find expat or use bundled version
 # Always use the system libexpat on Linux.
 
-find_package(EXPAT REQUIRED)
+find_package(EXPAT)
 
-add_library(libexpat INTERFACE)
-
-if(TARGET EXPAT::EXPAT)
-    target_link_libraries(libexpat INTERFACE EXPAT::EXPAT)
-elseif(TARGET expat::expat)
-    target_link_libraries(libexpat INTERFACE expat::expat)
+if (NOT EXPAT_FOUND)
+    add_library(expat STATIC
+        ${LIBDIR}/expat/xmlparse.c
+        ${LIBDIR}/expat/xmlrole.c
+        ${LIBDIR}/expat/xmltok.c
+    )
+    set(EXPAT_FOUND 1)
+    set(EXPAT_INCLUDE_DIRS ${LIBDIR}/expat/)
+    set(EXPAT_LIBRARIES expat)
 endif ()
 
 find_package(PNG REQUIRED)
@@ -480,82 +501,51 @@ if (SLIC3R_STATIC AND NOT SLIC3R_STATIC_EXCLUDE_GLEW)
     set(GLEW_VERBOSE ON)
 endif()
 
-find_package(GLEW)
-if (NOT TARGET GLEW::GLEW)
-    message(STATUS "GLEW not found, using bundled version.")
-    add_library(glew STATIC ${LIBDIR}/glew/src/glew.c)
-    set(GLEW_FOUND TRUE)
-    set(GLEW_INCLUDE_DIRS ${LIBDIR}/glew/include/)
-    target_compile_definitions(glew PUBLIC GLEW_STATIC)
-    target_include_directories(glew PUBLIC ${GLEW_INCLUDE_DIRS})
-    add_library(GLEW::GLEW ALIAS glew)
-endif ()
+find_package(GLEW REQUIRED)
+
+find_package(glfw3 REQUIRED)
 
 # Find the Cereal serialization library
 find_package(cereal REQUIRED)
+set_target_properties(cereal PROPERTIES IMPORTED_GLOBAL TRUE)
+if (NOT TARGET cereal::cereal)
+    add_library(cereal::cereal ALIAS cereal)
+endif ()
 
 # l10n
-set(L10N_DIR "${SLIC3R_RESOURCES_DIR}/localization")
+set(L10N_DIR "${SLIC3R_RESOURCES_DIR}/i18n")
+set(BBL_L18N_DIR "${CMAKE_CURRENT_SOURCE_DIR}/localization/i18n")
 add_custom_target(gettext_make_pot
-    COMMAND xgettext --keyword=L --keyword=_L --keyword=_u8L --keyword=L_CONTEXT:1,2c --keyword=_L_PLURAL:1,2 --add-comments=TRN --from-code=UTF-8 --debug --boost
-        -f "${L10N_DIR}/list.txt"
-        -o "${L10N_DIR}/Slic3r.pot"
-    COMMAND hintsToPot ${SLIC3R_RESOURCES_DIR} ${L10N_DIR}
+    COMMAND xgettext --keyword=L --keyword=_L --keyword=_u8L --keyword=L_CONTEXT:1,2c --keyword=_L_PLURAL:1,2 --add-comments=TRN --from-code=UTF-8 --no-location --debug --boost
+        -f "${BBL_L18N_DIR}/list.txt"
+        -o "${BBL_L18N_DIR}/Slic3r.pot"
+	COMMAND hintsToPot ${SLIC3R_RESOURCES_DIR} ${BBL_L18N_DIR}	
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Generate pot file from strings in the source tree"
 )
-
-add_custom_target(gettext_merge_community_po_with_pot
+add_custom_target(gettext_merge_po_with_pot
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMENT "Merge community po with new generated pot file"
+    COMMENT "Merge localization po with new generted pot file"
 )
-file(GLOB L10N_PO_FILES "${L10N_DIR}/*/Slic3r*.po")
-# list of names of directories, which are licalized by PS internally
-list(APPEND PS_L10N_DIRS "cs" "de" "es" "fr" "it" "ja" "pl")
-foreach(po_file ${L10N_PO_FILES})
+file(GLOB BBL_L10N_PO_FILES "${BBL_L18N_DIR}/*/Slic3r*.po")
+foreach(po_file ${BBL_L10N_PO_FILES})
     GET_FILENAME_COMPONENT(po_dir "${po_file}" DIRECTORY)
-    GET_FILENAME_COMPONENT(po_dir_name "${po_dir}" NAME)
-    list(FIND PS_L10N_DIRS ${po_dir_name} found_dir_id)
-    # found_dir_id==-1 means that po_dir_name wasn't found in PS_L10N_DIRS
-    if(found_dir_id LESS 0)
+    SET(po_new_file "${po_dir}/Slic3r_.po")
     add_custom_command(
-            TARGET gettext_merge_community_po_with_pot PRE_BUILD
-        COMMAND msgmerge -N -o ${po_file} ${po_file} "${L10N_DIR}/Slic3r.pot"
-        # delete obsolete lines from resulting PO to avoid conflicts after a merging of it with wxWidgets.po
-        COMMAND msgattrib --no-obsolete -o ${po_file} ${po_file}
-        DEPENDS ${po_file}
-    )
-    endif()
-endforeach()
-
-add_custom_target(gettext_concat_wx_po_with_po
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMENT "Concatenate and merge wxWidgets localization po with Slic3r po file"
-)
-file(GLOB L10N_PO_FILES "${L10N_DIR}/*/Slic3r*.po")
-foreach(po_file ${L10N_PO_FILES})
-    GET_FILENAME_COMPONENT(po_dir "${po_file}" DIRECTORY)
-    GET_FILENAME_COMPONENT(po_dir_name "${po_dir}" NAME)
-    SET(wx_po_file "${L10N_DIR}/wx_locale/${po_dir_name}.po")
-    #SET(po_new_file "${po_dir}/Slic3r_.po")
-    add_custom_command(
-        TARGET gettext_concat_wx_po_with_po PRE_BUILD
-        COMMAND msgcat --use-first -o ${po_file} ${po_file} ${wx_po_file}
-        # delete obsolete lines from resulting PO
-        COMMAND msgattrib --no-obsolete -o ${po_file} ${po_file}
+        TARGET gettext_merge_po_with_pot PRE_BUILD
+        COMMAND msgmerge -N -o ${po_file} ${po_file} "${BBL_L18N_DIR}/Slic3r.pot"
         DEPENDS ${po_file}
     )
 endforeach()
-
 add_custom_target(gettext_po_to_mo
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMENT "Generate localization mo files (binary) from po files (texts)"
+    COMMENT "Generate localization po files (binary) from mo files (texts)"
 )
-file(GLOB L10N_PO_FILES "${L10N_DIR}/*/Slic3r.po")
-foreach(po_file ${L10N_PO_FILES})
-    GET_FILENAME_COMPONENT(po_dir "${po_file}" DIRECTORY)
-    SET(mo_file "${po_dir}/${SLIC3R_APP_KEY}.mo")
-    message(STATUS "po_dir mo_file imgui : '${po_file}' and mo file is '${mo_file}'") 
+file(GLOB L10N_PO_FILES "${BBL_L18N_DIR}/*/Slic3r*.po")
+foreach(po_file ${BBL_L10N_PO_FILES})
+    GET_FILENAME_COMPONENT(SECOND_FOLDER_ABSOLUTE ${po_file} DIRECTORY)
+    string(REGEX REPLACE ".*/(.*)" "\\1" po_dir "${SECOND_FOLDER_ABSOLUTE}" )
+    SET(mo_file "${L10N_DIR}/${po_dir}/Slic3r.mo")
     add_custom_command(
         TARGET gettext_po_to_mo PRE_BUILD
         COMMAND msgfmt ARGS --check-format -o ${mo_file} ${po_file}
@@ -565,6 +555,7 @@ foreach(po_file ${L10N_PO_FILES})
 endforeach()
 
 find_package(NLopt 1.4 REQUIRED)
+
 
 if(SLIC3R_STATIC)
     set(OPENVDB_USE_STATIC_LIBS ON)
@@ -597,41 +588,104 @@ else()
 endif()
 
 set(TOP_LEVEL_PROJECT_DIR ${PROJECT_SOURCE_DIR})
-function(prusaslicer_copy_dlls target)
+function(Slic3r_copy_dlls target config postfix output_dlls)
     if ("${CMAKE_SIZEOF_VOID_P}" STREQUAL "8")
         set(_bits 64)
     elseif ("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
         set(_bits 32)
     endif ()
-    
+
     get_property(_is_multi GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
     get_target_property(_alt_out_dir ${target} RUNTIME_OUTPUT_DIRECTORY)
 
     if (_alt_out_dir)
         set (_out_dir "${_alt_out_dir}")
+        message ("set out_dir to _alt_out_dir: ${_out_dir}")
     elseif (_is_multi)
-        set (_out_dir "$<TARGET_PROPERTY:${target},BINARY_DIR>/$<CONFIG>")
+        set(_out_dir "${CMAKE_CURRENT_BINARY_DIR}/${config}")
+        message ("set out_dir to CMAKE_CURRENT_BINARY_DIR/config: ${_out_dir}")
     else ()
-        set (_out_dir "$<TARGET_PROPERTY:${target},BINARY_DIR>")
+        set(_out_dir "${CMAKE_CURRENT_BINARY_DIR}")
+        message ("set out_dir to CMAKE_CURRENT_BINARY_DIR: ${_out_dir}")
     endif ()
-    
-    # This has to be a separate target due to the windows command line lenght limits    
-    add_custom_command(TARGET ${target} POST_BUILD 
-        COMMAND ${CMAKE_COMMAND} -E copy ${TOP_LEVEL_PROJECT_DIR}/deps/GMP/gmp/lib/win${_bits}/libgmp-10.dll ${_out_dir}
-        COMMENT "Copy gmp runtime to build tree"
-        VERBATIM)
-    
-    add_custom_command(TARGET ${target} POST_BUILD 
-        COMMAND ${CMAKE_COMMAND} -E copy ${TOP_LEVEL_PROJECT_DIR}/deps/MPFR/mpfr/lib/win${_bits}/libmpfr-4.dll ${_out_dir}
-        COMMENT "Copy mpfr runtime to build tree"
-        VERBATIM)
 
+    file(COPY ${TOP_LEVEL_PROJECT_DIR}/deps/GMP/gmp/lib/win${_bits}/libgmp-10.dll
+            ${TOP_LEVEL_PROJECT_DIR}/deps/MPFR/mpfr/lib/win${_bits}/libmpfr-4.dll
+            ${TOP_LEVEL_PROJECT_DIR}/deps/WebView2/lib/win${_bits}/WebView2Loader.dll
+        DESTINATION ${_out_dir})
+
+    file(COPY ${CMAKE_PREFIX_PATH}/bin/occt/TKBO.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKBRep.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKCAF.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKCDF.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKernel.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKG2d.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKG3d.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKGeomAlgo.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKGeomBase.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKHLR.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKLCAF.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKMath.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKMesh.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKPrim.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKService.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKShHealing.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKSTEP.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKSTEP209.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKSTEPAttr.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKSTEPBase.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKTopAlgo.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKV3d.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKVCAF.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKXCAF.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKXDESTEP.dll
+            ${CMAKE_PREFIX_PATH}/bin/occt/TKXSBase.dll
+            ${CMAKE_PREFIX_PATH}/bin/freetype.dll
+         DESTINATION ${_out_dir})
+
+    set(${output_dlls}
+        ${_out_dir}/libgmp-10.dll
+        ${_out_dir}/libmpfr-4.dll
+        ${_out_dir}/WebView2Loader.dll
+
+        ${_out_dir}/TKBO.dll
+        ${_out_dir}/TKBRep.dll
+        ${_out_dir}/TKCAF.dll
+        ${_out_dir}/TKCDF.dll
+        ${_out_dir}/TKernel.dll
+        ${_out_dir}/TKG2d.dll
+        ${_out_dir}/TKG3d.dll
+        ${_out_dir}/TKGeomAlgo.dll
+        ${_out_dir}/TKGeomBase.dll
+        ${_out_dir}/TKHLR.dll
+        ${_out_dir}/TKLCAF.dll
+        ${_out_dir}/TKMath.dll
+        ${_out_dir}/TKMesh.dll
+        ${_out_dir}/TKPrim.dll
+        ${_out_dir}/TKService.dll
+        ${_out_dir}/TKShHealing.dll
+        ${_out_dir}/TKSTEP.dll
+        ${_out_dir}/TKSTEP209.dll
+        ${_out_dir}/TKSTEPAttr.dll
+        ${_out_dir}/TKSTEPBase.dll
+        ${_out_dir}/TKTopAlgo.dll
+        ${_out_dir}/TKV3d.dll
+        ${_out_dir}/TKVCAF.dll
+        ${_out_dir}/TKXCAF.dll
+        ${_out_dir}/TKXDESTEP.dll
+        ${_out_dir}/TKXSBase.dll
+
+        ${_out_dir}/freetype.dll
+
+        PARENT_SCOPE
+    )
+    
 endfunction()
 
 
 # libslic3r, Slic3r GUI and the Slic3r executable.
 add_subdirectory(src)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Slic3r_app_console)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Slic3r_app_gui)
 
 add_dependencies(gettext_make_pot hintsToPot)
 
@@ -651,8 +705,15 @@ if(SLIC3R_BUILD_TESTS)
 endif()
 
 if (NOT WIN32 AND NOT APPLE)
+    set(SLIC3R_APP_CMD "orca-slicer")
     configure_file(${LIBDIR}/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh @ONLY)
 endif()
+
+option(BUILD_BBS_TEST_TOOLS          "Build bbs test tools" OFF)
+if(BUILD_BBS_TEST_TOOLS)
+    add_subdirectory(bbs_test_tools)
+endif()
+
 
 # Resources install target, configure fhs.hpp on UNIX
 if (WIN32)
