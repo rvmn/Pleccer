@@ -878,7 +878,7 @@ ProcessSurfaceResult PerimeterGenerator::process_classic(int& loop_number, const
                     BridgeDetector detector{ unsupported,
                         lower_island.expolygons,
                         perimeter_spacing };
-                    if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value)))
+                    if (detector.detect_angle(Geometry::deg2rad(this->config->bridge_angle.value), this->config))
                         expolygons_append(bridgeable, union_ex(detector.coverage(-1, true)));
                 }
                 if (!bridgeable.empty()) {
